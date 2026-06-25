@@ -1,0 +1,12 @@
+### Petición GET simple (Los tres '#' sirven para separar peticiones)
+GET https://jsonplaceholder.typicode.com/posts/1
+
+### Petición POST enviando un JSON
+POST https://jsonplaceholder.typicode.com/posts
+Content-Type: application/json
+
+{
+    "title": "Probando REST Client",
+    "body": "Esto es mucho más ligero que Postman",
+    "userId": 1
+}

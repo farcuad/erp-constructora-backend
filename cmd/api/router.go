@@ -1,0 +1,56 @@
+// cmd/api/router.go
+package main
+
+import (
+	"database/sql"
+	"net/http"
+
+	"erp-constructora/internal/budgets"
+	"erp-constructora/internal/clients"
+	"erp-constructora/internal/expense"
+	"erp-constructora/internal/project"
+	"erp-constructora/internal/users"
+)
+
+// SetupRoutes recibe la conexión de la BD, inicializa los módulos y devuelve el enrutador listo
+func SetupRoutes(db *sql.DB) http.Handler {
+	mux := http.NewServeMux()
+
+	// 1. Inicializar Módulo de Usuarios y Empresas (Fase 1)
+	userRepo := users.NewRepository(db)
+	userService := users.NewService(userRepo)
+	userHandler := users.NewHandler(userService)
+
+	projectRepo := project.NewRepository(db)
+	projectService := project.NewService(projectRepo)
+	projectHandler := project.NewHandler(projectService)
+
+	clientRepo := clients.NewRepository(db)
+	clientService := clients.NewService(clientRepo)
+	clientHandler := clients.NewHandler(clientService)
+
+	budgetRepo := budgets.NewRepository(db)
+	budgetService := budgets.NewService(budgetRepo)
+	budgetHandler := budgets.NewHandler(budgetService)
+
+	expenseRepo := expense.NewRepository(db)
+	expenseService := expense.NewService(expenseRepo)
+	expenseHandler := expense.NewHandler(expenseService)
+	// Definir las rutas de este módulo
+	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
+	mux.HandleFunc("POST /login", userHandler.Login) // Nueva ruta que haremos hoy
+
+	mux.Handle("POST /projects", users.AuthMiddleware(http.HandlerFunc(projectHandler.Create)))
+	mux.Handle("GET /projects", users.AuthMiddleware(http.HandlerFunc(projectHandler.GetAll)))
+
+	mux.Handle("POST /clients", users.AuthMiddleware(http.HandlerFunc(clientHandler.Create)))
+	mux.Handle("GET /clients", users.AuthMiddleware(http.HandlerFunc(clientHandler.GetAll)))
+
+	mux.Handle("POST /budgets", users.AuthMiddleware(http.HandlerFunc(budgetHandler.Create)))
+	mux.Handle("GET /budgets/{project_id}", users.AuthMiddleware(http.HandlerFunc(budgetHandler.GetBudgetsByProjectID)))
+
+	mux.Handle("POST /expenses", users.AuthMiddleware(http.HandlerFunc(expenseHandler.Create)))
+	mux.Handle("GET /expenses/{project_id}", users.AuthMiddleware(http.HandlerFunc(expenseHandler.GetByProject)))
+
+	return mux
+}
