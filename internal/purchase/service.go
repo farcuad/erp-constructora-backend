@@ -5,24 +5,38 @@ import (
 	"errors"
 )
 
-type Service interface {
-	GeneratePurchaseOrder(ctx context.Context, companyID string, userID string, req *CreatePurchaseOrderRequest) (*PurchaseOrder, error)
+type Service struct {
+	repo *Repository
 }
 
-type service struct {
-	repo Repository
+func NewService(repo *Repository) *Service {
+	return &Service{repo: repo}
 }
 
-func NewService(repo Repository) Service {
-	return &service{repo: repo}
-}
-
-func (s *service) GeneratePurchaseOrder(ctx context.Context, companyID string, userID string, req *CreatePurchaseOrderRequest) (*PurchaseOrder, error) {
-	if req.ProjectID == "" || req.SupplierID == "" {
-		return nil, errors.New("el proyecto y el proveedor son requeridos para emitir una orden de compra")
+// CreatePurchaseOrder calcula los totales y guarda la orden
+func (s *Service) CreatePurchaseOrder(ctx context.Context, po *PurchaseOrder) error {
+	if po.ProjectID == "" || po.SupplierID == "" {
+		return errors.New("el proyecto y el proveedor son campos obligatorios")
 	}
-	if len(req.Items) == 0 {
-		return nil, errors.New("la orden de compra debe contener por lo menos un ítem")
+	if len(po.Items) == 0 {
+		return errors.New("la orden de compra debe contener al menos un ítem")
 	}
-	return s.repo.CreateOrder(ctx, companyID, userID, req)
+
+	// Forzar estado por defecto y recalcular la suma total del lado del servidor por seguridad
+	po.Status = "Pending"
+	var total float64 = 0
+	for _, item := range po.Items {
+		if item.Quantity <= 0 || item.UnitPrice <= 0 {
+			return errors.New("la cantidad y el precio unitario deben ser mayores a cero")
+		}
+		total += item.Quantity * item.UnitPrice
+	}
+	po.TotalAmount = total
+
+	return s.repo.CreatePurchaseOrder(ctx, po)
+}
+
+// ListOrdersByProject lista las órdenes correspondientes a una obra
+func (s *Service) ListOrdersByProject(ctx context.Context, projectID string) ([]PurchaseOrder, error) {
+	return s.repo.GetOrdersByProject(ctx, projectID)
 }

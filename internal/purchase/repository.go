@@ -5,68 +5,73 @@ import (
 	"database/sql"
 )
 
-type Repository interface {
-	CreateOrder(ctx context.Context, companyID string, userID string, po *CreatePurchaseOrderRequest) (*PurchaseOrder, error)
-}
-
-type repository struct {
+type Repository struct {
 	db *sql.DB
 }
 
-func NewRepository(db *sql.DB) Repository {
-	return &repository{db: db}
+func NewRepository(db *sql.DB) *Repository {
+	return &Repository{db: db}
 }
 
-func (r *repository) CreateOrder(ctx context.Context, companyID string, userID string, po *CreatePurchaseOrderRequest) (*PurchaseOrder, error) {
+// --- MÉTODOS DE ÓRDENES DE COMPRA ---
+
+func (r *Repository) CreatePurchaseOrder(ctx context.Context, po *PurchaseOrder) error {
+	// Iniciamos transacción para insertar la cabecera y los ítems de manera segura
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer tx.Rollback()
 
-	// 1. Calcular total acumulado de la orden
-	var totalOrder float64
-	for _, item := range po.Items {
-		totalOrder += item.Quantity * item.UnitPrice
+	// 1. Insertar la Orden de Compra Principal
+	queryOrder := `INSERT INTO purchase_orders (company_id, project_id, supplier_id, user_id, status, total_amount, delivery_date, notes) 
+	               VALUES ($1, $2, $3, $4, $5, $6, $7, $8) 
+	               RETURNING id, order_number, created_at, updated_at`
+
+	var deliveryDate interface{} = nil
+	if po.DeliveryDate != "" {
+		deliveryDate = po.DeliveryDate
 	}
 
-	// 2. Insertar cabecera de la Orden de Compra
-	orderQuery := `
-		INSERT INTO purchase_orders (company_id, project_id, supplier_id, user_id, total_amount, delivery_date, notes)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, order_number, status, created_at, updated_at`
-
-	var order PurchaseOrder
-	order.CompanyID = companyID
-	order.ProjectID = po.ProjectID
-	order.SupplierID = po.SupplierID
-	order.UserID = userID
-	order.TotalAmount = totalOrder
-	order.DeliveryDate = po.DeliveryDate
-	order.Notes = po.Notes
-
-	err = tx.QueryRowContext(ctx, orderQuery, companyID, po.ProjectID, po.SupplierID, userID, totalOrder, po.DeliveryDate, po.Notes).Scan(
-		&order.ID, &order.OrderNumber, &order.Status, &order.CreatedAt, &order.UpdatedAt,
-	)
+	err = tx.QueryRowContext(ctx, queryOrder, po.CompanyID, po.ProjectID, po.SupplierID, po.UserID, po.Status, po.TotalAmount, deliveryDate, po.Notes).
+		Scan(&po.ID, &po.OrderNumber, &po.CreatedAt, &po.UpdatedAt)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// 3. Insertar ítems asociados
-	itemQuery := `
-		INSERT INTO purchase_order_items (purchase_order_id, description, unit, quantity, unit_price)
-		VALUES ($1, $2, $3, $4, $5)`
+	// 2. Insertar los ítems asociados utilizando la ID devuelta de la cabecera
+	queryItem := `INSERT INTO purchase_order_items (purchase_order_id, description, unit, quantity, unit_price) 
+	              VALUES ($1, $2, $3, $4, $5) 
+	              RETURNING id, total_price`
 
-	for _, item := range po.Items {
-		_, err = tx.ExecContext(ctx, itemQuery, order.ID, item.Description, item.Unit, item.Quantity, item.UnitPrice)
+	for i := range po.Items {
+		po.Items[i].PurchaseOrderID = po.ID
+		err = tx.QueryRowContext(ctx, queryItem, po.ID, po.Items[i].Description, po.Items[i].Unit, po.Items[i].Quantity, po.Items[i].UnitPrice).
+			Scan(&po.Items[i].ID, &po.Items[i].TotalPrice)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	if err := tx.Commit(); err != nil {
+	return tx.Commit()
+}
+
+func (r *Repository) GetOrdersByProject(ctx context.Context, projectID string) ([]PurchaseOrder, error) {
+	query := `SELECT id, company_id, project_id, supplier_id, user_id, order_number, status, total_amount, COALESCE(delivery_date::text, ''), notes, created_at, updated_at 
+	          FROM purchase_orders WHERE project_id = $1`
+	rows, err := r.db.QueryContext(ctx, query, projectID)
+	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
-	return &order, nil
+	var orders []PurchaseOrder
+	for rows.Next() {
+		var po PurchaseOrder
+		if err := rows.Scan(&po.ID, &po.CompanyID, &po.ProjectID, &po.SupplierID, &po.UserID, &po.OrderNumber, &po.Status, &po.TotalAmount, &po.DeliveryDate, &po.Notes, &po.CreatedAt, &po.UpdatedAt); err != nil {
+			return nil, err
+		}
+		orders = append(orders, po)
+	}
+	return orders, nil
 }

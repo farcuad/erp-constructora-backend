@@ -9,6 +9,8 @@ import (
 	"erp-constructora/internal/clients"
 	"erp-constructora/internal/expense"
 	"erp-constructora/internal/project"
+	"erp-constructora/internal/purchase"
+	"erp-constructora/internal/suppliers"
 	"erp-constructora/internal/users"
 )
 
@@ -36,6 +38,14 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	expenseRepo := expense.NewRepository(db)
 	expenseService := expense.NewService(expenseRepo)
 	expenseHandler := expense.NewHandler(expenseService)
+
+	purchaseRepo := purchase.NewRepository(db)
+	purchaseService := purchase.NewService(purchaseRepo)
+	purcharseHandler := purchase.NewHandler(purchaseService)
+
+	supplierRepo := suppliers.NewRepository(db)
+	suppilerService := suppliers.NewService(supplierRepo)
+	suppliersHandler := suppliers.NewHandler(suppilerService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login) // Nueva ruta que haremos hoy
@@ -51,6 +61,12 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	mux.Handle("POST /expenses", users.AuthMiddleware(http.HandlerFunc(expenseHandler.Create)))
 	mux.Handle("GET /expenses/{project_id}", users.AuthMiddleware(http.HandlerFunc(expenseHandler.GetByProject)))
+
+	mux.Handle("POST /purcharse", users.AuthMiddleware(http.HandlerFunc(purcharseHandler.CreatePurchaseOrder)))
+	mux.Handle("GET /purcharse/{project_id}", users.AuthMiddleware(http.HandlerFunc(purcharseHandler.GetOrdersByProject)))
+
+	mux.Handle("POST /supplier", users.AuthMiddleware(http.HandlerFunc(suppliersHandler.CreateSupplier)))
+	mux.Handle("GET /supplier/{project_id}", users.AuthMiddleware(http.HandlerFunc(suppliersHandler.GetAllSuppliers)))
 
 	return mux
 }
