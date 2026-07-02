@@ -7,7 +7,9 @@ import (
 
 	"erp-constructora/internal/budgets"
 	"erp-constructora/internal/clients"
+	"erp-constructora/internal/equipement"
 	"erp-constructora/internal/expense"
+	"erp-constructora/internal/inventory"
 	"erp-constructora/internal/project"
 	"erp-constructora/internal/purchase"
 	"erp-constructora/internal/suppliers"
@@ -46,9 +48,17 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	supplierRepo := suppliers.NewRepository(db)
 	suppilerService := suppliers.NewService(supplierRepo)
 	suppliersHandler := suppliers.NewHandler(suppilerService)
+
+	inventoryRepository := inventory.NewRepository(db)
+	inventoryService := inventory.NewService(inventoryRepository)
+	inventoryHandler := inventory.NewHandler(inventoryService)
+
+	equipementRepository := equipement.NewRepository(db)
+	equipementService := equipement.NewService(equipementRepository)
+	equipementHandler := equipement.NewHandler(equipementService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
-	mux.HandleFunc("POST /login", userHandler.Login) // Nueva ruta que haremos hoy
+	mux.HandleFunc("POST /login", userHandler.Login)
 
 	mux.Handle("POST /projects", users.AuthMiddleware(http.HandlerFunc(projectHandler.Create)))
 	mux.Handle("GET /projects", users.AuthMiddleware(http.HandlerFunc(projectHandler.GetAll)))
@@ -67,6 +77,16 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	mux.Handle("POST /supplier", users.AuthMiddleware(http.HandlerFunc(suppliersHandler.CreateSupplier)))
 	mux.Handle("GET /supplier/{project_id}", users.AuthMiddleware(http.HandlerFunc(suppliersHandler.GetAllSuppliers)))
+
+	mux.Handle("POST /materials", users.AuthMiddleware(http.HandlerFunc(inventoryHandler.CreateMaterial)))
+	mux.Handle("POST /warehouses", users.AuthMiddleware(http.HandlerFunc(inventoryHandler.CreateWarehouse)))
+	mux.Handle("POST /inventory/movements", users.AuthMiddleware(http.HandlerFunc(inventoryHandler.PostMovement)))
+	mux.Handle("GET /inventory/stock/{warehouse_id}", users.AuthMiddleware(http.HandlerFunc(inventoryHandler.GetStock)))
+
+	mux.Handle("POST /equipment", users.AuthMiddleware(http.HandlerFunc(equipementHandler.CreateEquipment)))
+	mux.Handle("GET /equipment", users.AuthMiddleware(http.HandlerFunc(equipementHandler.GetAll)))
+	mux.Handle("POST /equipment/assignments", users.AuthMiddleware(http.HandlerFunc(equipementHandler.Assign)))
+	mux.Handle("POST /equipment/maintenances", users.AuthMiddleware(http.HandlerFunc(equipementHandler.Maintenance)))
 
 	return mux
 }
