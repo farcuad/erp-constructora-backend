@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"net/http"
 
+	"erp-constructora/internal/attendance"
 	"erp-constructora/internal/budgets"
 	"erp-constructora/internal/clients"
 	"erp-constructora/internal/equipement"
@@ -61,6 +62,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	personnelRespository := personnel.NewRepository(db)
 	personnelService := personnel.NewService(personnelRespository)
 	personnelHandler := personnel.NewHandler(personnelService)
+
+	attendanceRepositoy := attendance.NewRepository(db)
+	attendanceService := attendance.NewService(attendanceRepositoy)
+	attendanceHandler := attendance.NewHandler(attendanceService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -97,6 +102,9 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /employees", users.AuthMiddleware(http.HandlerFunc(personnelHandler.CreateEmployee)))
 	mux.Handle("GET /employees", users.AuthMiddleware(http.HandlerFunc(personnelHandler.GetEmployees)))
 	mux.Handle("POST /contracts", users.AuthMiddleware(http.HandlerFunc(personnelHandler.CreateContract)))
+
+	mux.Handle("POST /attendance", users.AuthMiddleware(http.HandlerFunc(attendanceHandler.SaveAttendance)))
+	mux.Handle("GET /attendance/{project_id}", users.AuthMiddleware(http.HandlerFunc(attendanceHandler.GetAttendance)))
 
 	return mux
 }
