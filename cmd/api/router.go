@@ -8,6 +8,7 @@ import (
 	"erp-constructora/internal/attendance"
 	"erp-constructora/internal/budgets"
 	"erp-constructora/internal/clients"
+	"erp-constructora/internal/contractors"
 	"erp-constructora/internal/equipement"
 	"erp-constructora/internal/expense"
 	"erp-constructora/internal/inventory"
@@ -66,6 +67,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	attendanceRepositoy := attendance.NewRepository(db)
 	attendanceService := attendance.NewService(attendanceRepositoy)
 	attendanceHandler := attendance.NewHandler(attendanceService)
+
+	contractorsRepository := contractors.NewRepository(db)
+	contractorsService := contractors.NewService(contractorsRepository)
+	contractorsHandler := contractors.NewHandler(contractorsService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -105,6 +110,12 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	mux.Handle("POST /attendance", users.AuthMiddleware(http.HandlerFunc(attendanceHandler.SaveAttendance)))
 	mux.Handle("GET /attendance/{project_id}", users.AuthMiddleware(http.HandlerFunc(attendanceHandler.GetAttendance)))
+
+	mux.Handle("POST /contractors", users.AuthMiddleware(http.HandlerFunc(contractorsHandler.CreateContractor)))
+	mux.Handle("POST /contractors/contracts", users.AuthMiddleware(http.HandlerFunc(contractorsHandler.CreateContract)))
+	mux.Handle("POST /contractors/payments", users.AuthMiddleware(http.HandlerFunc(contractorsHandler.PostPayment)))
+	// Get limpio con parámetro en ruta
+	mux.Handle("GET /contractors/contracts/{project_id}", users.AuthMiddleware(http.HandlerFunc(contractorsHandler.GetContracts)))
 
 	return mux
 }
