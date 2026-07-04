@@ -13,6 +13,7 @@ import (
 	"erp-constructora/internal/expense"
 	"erp-constructora/internal/inventory"
 	"erp-constructora/internal/personnel"
+	"erp-constructora/internal/photos"
 	"erp-constructora/internal/progress"
 	"erp-constructora/internal/project"
 	"erp-constructora/internal/purchase"
@@ -81,6 +82,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	progressRepository := progress.NewRepository(db)
 	progressService := progress.NewService(progressRepository)
 	progressHandler := progress.NewHandler(progressService)
+
+	photosRepository := photos.NewRepository(db)
+	photosService := photos.NewService(photosRepository)
+	photosHandler := photos.NewHandler(photosService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -135,6 +140,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /progress/daily", users.AuthMiddleware(http.HandlerFunc(progressHandler.CreateDailyReport)))
 	// Futuro endpoint para consultar el histórico de avances por proyecto
 	mux.Handle("GET /progress/{project_id}", users.AuthMiddleware(http.HandlerFunc(progressHandler.GetDailyReport)))
+
+	mux.Handle("POST /photos", users.AuthMiddleware(http.HandlerFunc(photosHandler.UploadPhotoMetadata)))
+	// Obtener toda la galería multimedia de un proyecto específico
+	mux.Handle("GET /photos/{project_id}", users.AuthMiddleware(http.HandlerFunc(photosHandler.GetGallery)))
 
 	return mux
 }
