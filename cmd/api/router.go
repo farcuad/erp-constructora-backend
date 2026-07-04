@@ -15,6 +15,7 @@ import (
 	"erp-constructora/internal/personnel"
 	"erp-constructora/internal/project"
 	"erp-constructora/internal/purchase"
+	schedule "erp-constructora/internal/shedule"
 	"erp-constructora/internal/suppliers"
 	"erp-constructora/internal/users"
 )
@@ -71,6 +72,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	contractorsRepository := contractors.NewRepository(db)
 	contractorsService := contractors.NewService(contractorsRepository)
 	contractorsHandler := contractors.NewHandler(contractorsService)
+
+	sheduleRepository := schedule.NewRepository(db)
+	sheduleService := schedule.NewService(sheduleRepository)
+	sheduleHandler := schedule.NewHandler(sheduleService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -116,6 +121,11 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /contractors/payments", users.AuthMiddleware(http.HandlerFunc(contractorsHandler.PostPayment)))
 	// Get limpio con parámetro en ruta
 	mux.Handle("GET /contractors/contracts/{project_id}", users.AuthMiddleware(http.HandlerFunc(contractorsHandler.GetContracts)))
+
+	mux.Handle("POST /schedule/tasks", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.CreateTask)))
+	mux.Handle("POST /schedule/dependencies", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.AddDependency)))
+	mux.Handle("POST /schedule/milestones", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.CreateMilestone)))
+	mux.Handle("GET /schedule/{project_id}", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.GetSchedule)))
 
 	return mux
 }
