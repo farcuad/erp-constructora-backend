@@ -13,6 +13,7 @@ import (
 	"erp-constructora/internal/expense"
 	"erp-constructora/internal/inventory"
 	"erp-constructora/internal/personnel"
+	"erp-constructora/internal/progress"
 	"erp-constructora/internal/project"
 	"erp-constructora/internal/purchase"
 	schedule "erp-constructora/internal/shedule"
@@ -76,6 +77,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	sheduleRepository := schedule.NewRepository(db)
 	sheduleService := schedule.NewService(sheduleRepository)
 	sheduleHandler := schedule.NewHandler(sheduleService)
+
+	progressRepository := progress.NewRepository(db)
+	progressService := progress.NewService(progressRepository)
+	progressHandler := progress.NewHandler(progressService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -126,6 +131,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /schedule/dependencies", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.AddDependency)))
 	mux.Handle("POST /schedule/milestones", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.CreateMilestone)))
 	mux.Handle("GET /schedule/{project_id}", users.AuthMiddleware(http.HandlerFunc(sheduleHandler.GetSchedule)))
+
+	mux.Handle("POST /progress/daily", users.AuthMiddleware(http.HandlerFunc(progressHandler.CreateDailyReport)))
+	// Futuro endpoint para consultar el histórico de avances por proyecto
+	mux.Handle("GET /progress/{project_id}", users.AuthMiddleware(http.HandlerFunc(progressHandler.GetDailyReport)))
 
 	return mux
 }
