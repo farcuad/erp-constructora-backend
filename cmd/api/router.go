@@ -12,6 +12,7 @@ import (
 	"erp-constructora/internal/equipement"
 	"erp-constructora/internal/expense"
 	"erp-constructora/internal/inventory"
+	"erp-constructora/internal/payments"
 	"erp-constructora/internal/personnel"
 	"erp-constructora/internal/photos"
 	"erp-constructora/internal/progress"
@@ -86,6 +87,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	photosRepository := photos.NewRepository(db)
 	photosService := photos.NewService(photosRepository)
 	photosHandler := photos.NewHandler(photosService)
+
+	paymentRepository := payments.NewRepository(db)
+	paymentService := payments.NewService(paymentRepository)
+	paymentHandler := payments.NewHandler(paymentService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -144,6 +149,9 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /photos", users.AuthMiddleware(http.HandlerFunc(photosHandler.UploadPhotoMetadata)))
 	// Obtener toda la galería multimedia de un proyecto específico
 	mux.Handle("GET /photos/{project_id}", users.AuthMiddleware(http.HandlerFunc(photosHandler.GetGallery)))
+
+	mux.Handle("POST /invoices", users.AuthMiddleware(http.HandlerFunc(paymentHandler.CreateInvoice)))
+	mux.Handle("POST /invoices/payments", users.AuthMiddleware(http.HandlerFunc(paymentHandler.PostPayment)))
 
 	return mux
 }
