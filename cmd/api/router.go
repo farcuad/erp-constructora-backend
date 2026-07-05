@@ -9,6 +9,7 @@ import (
 	"erp-constructora/internal/budgets"
 	"erp-constructora/internal/clients"
 	"erp-constructora/internal/contractors"
+	"erp-constructora/internal/documents"
 	"erp-constructora/internal/equipement"
 	"erp-constructora/internal/expense"
 	financialdashboard "erp-constructora/internal/financial_dashboard"
@@ -96,6 +97,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	dashboardRepository := financialdashboard.NewRepository(db)
 	dashboardService := financialdashboard.NewService(dashboardRepository)
 	dashboardHandler := financialdashboard.NewHandler(dashboardService)
+
+	documentsRepository := documents.NewRepository(db)
+	documentsService := documents.NewService(documentsRepository)
+	documentsHandler := documents.NewHandler(documentsService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -159,6 +164,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /invoices/payments", users.AuthMiddleware(http.HandlerFunc(paymentHandler.PostPayment)))
 
 	mux.Handle("GET /dashboard/financial/{project_id}", users.AuthMiddleware(http.HandlerFunc(dashboardHandler.GetSummary)))
+
+	mux.Handle("POST /documents/types", users.AuthMiddleware(http.HandlerFunc(documentsHandler.CreateType)))
+	mux.Handle("POST /documents", users.AuthMiddleware(http.HandlerFunc(documentsHandler.CreateDocument)))
+	mux.Handle("POST /documents/versions", users.AuthMiddleware(http.HandlerFunc(documentsHandler.UpdateVersion)))
 
 	return mux
 }
