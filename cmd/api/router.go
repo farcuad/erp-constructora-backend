@@ -6,6 +6,7 @@ import (
 	"net/http"
 
 	"erp-constructora/internal/attendance"
+	audit "erp-constructora/internal/audit_logs"
 	"erp-constructora/internal/budgets"
 	"erp-constructora/internal/clients"
 	"erp-constructora/internal/contractors"
@@ -106,6 +107,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	notificationsRepository := notifications.NewRepository(db)
 	notificationsService := notifications.NewService(notificationsRepository)
 	notificationsHandler := notifications.NewHandler(notificationsService)
+
+	auditLogsRepository := audit.NewRepository(db)
+	auditLogsService := audit.NewService(auditLogsRepository)
+	auditLogsHandler := audit.NewHandler(auditLogsService)
 	// Definir las rutas de este módulo
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
@@ -178,6 +183,9 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("GET /notifications", users.AuthMiddleware(http.HandlerFunc(notificationsHandler.GetMyNotifications)))
 	// Marcar una notificación específica como leída
 	mux.Handle("PATCH /notifications/{notification_id}/read", users.AuthMiddleware(http.HandlerFunc(notificationsHandler.MarkRead)))
+
+	mux.Handle("POST /audits-logs", users.AuthMiddleware(http.HandlerFunc(auditLogsHandler.CreateLog)))
+	mux.Handle("GET /audits-logs", users.AuthMiddleware(http.HandlerFunc(auditLogsHandler.GetCompanyLogs)))
 
 	return mux
 }
