@@ -85,3 +85,15 @@ func (r *Repository) GetAttendanceByProjectAndDate(ctx context.Context, projectI
 
 	return &a, nil
 }
+
+func (r *Repository) UpdateAttendanceLog(ctx context.Context, log *AttendanceLog) error {
+	query := `UPDATE attendance_logs SET status = $1, hours_worked = $2, notes = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`
+	_, err := r.db.ExecContext(ctx, query, log.Status, log.HoursWorked, log.Notes, log.ID)
+	return err
+}
+
+func (r *Repository) DeleteAttendance(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM attendance WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}

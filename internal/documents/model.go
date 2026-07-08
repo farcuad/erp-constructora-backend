@@ -12,6 +12,17 @@ type DocumentType struct {
 	CreatedAt   time.Time `json:"created_at"`
 }
 
+type UpdateDocumentTypeRequest struct {
+	Name        *string `json:"name,omitempty"`
+	Description *string `json:"description,omitempty"`
+}
+
+type UpdateDocumentRequest struct {
+	Title          *string `json:"title,omitempty"`
+	Description    *string `json:"description,omitempty"`
+	DocumentTypeID *string `json:"document_type_id,omitempty"`
+}
+
 type Document struct {
 	ID             string            `json:"id"`
 	CompanyID      string            `json:"company_id"`

@@ -42,6 +42,13 @@ func (s *Service) FetchMyNotifications(ctx context.Context, companyID, userID st
 	return s.repo.GetUserNotifications(ctx, companyID, userID)
 }
 
+func (s *Service) DeleteNotification(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y de la notificación son requeridos")
+	}
+	return s.repo.Delete(ctx, companyID, id)
+}
+
 func (s *Service) ReadNotification(ctx context.Context, companyID, notificationID, userID string) error {
 	if notificationID == "" {
 		return errors.New("el id de la notificación es requerido")

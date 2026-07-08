@@ -35,6 +35,12 @@ type InvoiceItem struct {
 	Total       float64 `json:"total"`
 }
 
+type UpdateInvoiceRequest struct {
+	Status  *string    `json:"status,omitempty"`
+	Notes   *string    `json:"notes,omitempty"`
+	DueDate *time.Time `json:"due_date,omitempty"`
+}
+
 type Payment struct {
 	ID            string    `json:"id"`
 	CompanyID     string    `json:"company_id"`

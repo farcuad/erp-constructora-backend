@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"erp-constructora/internal/users"
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -16,7 +16,7 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) CreateNotifications(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -58,8 +58,8 @@ func (h *Handler) CreateNotifications(w http.ResponseWriter, r *http.Request) {
 
 // GetMyNotifications responde con la bandeja de entrada del usuario autenticado
 func (h *Handler) GetMyNotifications(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
-	userID, okUser := users.GetUserIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -77,8 +77,8 @@ func (h *Handler) GetMyNotifications(w http.ResponseWriter, r *http.Request) {
 
 // MarkRead Endpoint para cuando el usuario hace clic sobre la notificación en React/Flutter
 func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
-	userID, okUser := users.GetUserIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -99,4 +99,26 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"message": "Notificación marcada como leída"})
+}
+
+func (h *Handler) DeleteNotification(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("notification_id")
+	if id == "" {
+		http.Error(w, "Falta el parámetro notification_id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeleteNotification(r.Context(), companyID, id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Notificación eliminada"})
 }

@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"erp-constructora/internal/users"
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -22,14 +22,14 @@ func (h *Handler) CreateDailyReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
 	}
 	report.CompanyID = companyID
 
-	userID, ok := users.GetUserIDFromContext(r.Context())
+	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -53,7 +53,7 @@ func (h *Handler) CreateDailyReport(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -82,4 +82,54 @@ func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(report)
+}
+
+func (h *Handler) UpdateDailyReport(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateDailyReportRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UpdateDailyReport(r.Context(), companyID, id, req); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reporte diario actualizado"})
+}
+
+func (h *Handler) DeleteDailyReport(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeleteDailyReport(r.Context(), companyID, id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Reporte diario eliminado"})
 }

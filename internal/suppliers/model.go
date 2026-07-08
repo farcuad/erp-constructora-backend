@@ -29,3 +29,11 @@ type SupplierContact struct {
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
 }
+
+type UpdateSupplierRequest struct {
+	Name    *string `json:"name,omitempty"`
+	NIT     *string `json:"nit,omitempty"`
+	Address *string `json:"address,omitempty"`
+	Phone   *string `json:"phone,omitempty"`
+	Email   *string `json:"email,omitempty"`
+}

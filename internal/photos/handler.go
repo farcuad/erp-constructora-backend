@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"erp-constructora/internal/users"
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -17,8 +17,8 @@ func NewHandler(service *Service) *Handler {
 
 // UploadPhotoMetadata recibe la URL ya generada por Supabase Storage junto con las relaciones
 func (h *Handler) UploadPhotoMetadata(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
-	userID, okUser := users.GetUserIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -44,7 +44,7 @@ func (h *Handler) UploadPhotoMetadata(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetGallery(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -64,4 +64,54 @@ func (h *Handler) GetGallery(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(gallery)
+}
+
+func (h *Handler) UpdatePhoto(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdatePhotoRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UpdatePhoto(r.Context(), companyID, id, req); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Foto actualizada"})
+}
+
+func (h *Handler) DeletePhoto(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeletePhoto(r.Context(), companyID, id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Foto eliminada"})
 }

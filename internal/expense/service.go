@@ -8,6 +8,8 @@ import (
 type Service interface {
 	RegisterExpense(ctx context.Context, companyID string, userID string, req *CreateExpenseRequest) (*Expense, error)
 	GetProjectExpenses(ctx context.Context, companyID string, projectID string) ([]Expense, error)
+	UpdateExpense(ctx context.Context, companyID string, id string, req *UpdateExpenseRequest) (*Expense, error)
+	DeleteExpense(ctx context.Context, companyID string, id string) error
 }
 
 type service struct {
@@ -26,6 +28,27 @@ func (s *service) RegisterExpense(ctx context.Context, companyID string, userID 
 		return nil, errors.New("debe seleccionar una categoría de gasto válida")
 	}
 	return s.repo.Create(ctx, companyID, userID, req)
+}
+
+func (s *service) UpdateExpense(ctx context.Context, companyID string, id string, req *UpdateExpenseRequest) (*Expense, error) {
+	if req.Title != nil && *req.Title == "" {
+		return nil, errors.New("el título no puede estar vacío")
+	}
+	if req.Amount != nil && *req.Amount <= 0 {
+		return nil, errors.New("el monto debe ser mayor a cero")
+	}
+	if req.CategoryID != nil && *req.CategoryID <= 0 {
+		return nil, errors.New("debe seleccionar una categoría de gasto válida")
+	}
+	err := s.repo.Update(ctx, companyID, id, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(ctx, companyID, id)
+}
+
+func (s *service) DeleteExpense(ctx context.Context, companyID string, id string) error {
+	return s.repo.Delete(ctx, companyID, id)
 }
 
 func (s *service) GetProjectExpenses(ctx context.Context, companyID string, projectID string) ([]Expense, error) {

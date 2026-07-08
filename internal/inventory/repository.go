@@ -111,3 +111,53 @@ func (r *Repository) GetStockByWarehouse(ctx context.Context, warehouseID string
 	}
 	return stocks, nil
 }
+
+func (r *Repository) GetMaterialByID(ctx context.Context, id, companyID string) (*Material, error) {
+	query := `SELECT id, company_id, COALESCE(category_id::text, ''), name, COALESCE(code, ''), unit, created_at, updated_at 
+	          FROM materials WHERE id = $1 AND company_id = $2`
+	var m Material
+	err := r.db.QueryRowContext(ctx, query, id, companyID).Scan(&m.ID, &m.CompanyID, &m.CategoryID, &m.Name, &m.Code, &m.Unit, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
+func (r *Repository) UpdateMaterial(ctx context.Context, m *Material) error {
+	var categoryID interface{} = nil
+	if m.CategoryID != "" {
+		categoryID = m.CategoryID
+	}
+	query := `UPDATE materials SET name = $1, code = $2, unit = $3, category_id = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 AND company_id = $6`
+	_, err := r.db.ExecContext(ctx, query, m.Name, m.Code, m.Unit, categoryID, m.ID, m.CompanyID)
+	return err
+}
+
+func (r *Repository) DeleteMaterial(ctx context.Context, id, companyID string) error {
+	query := `DELETE FROM materials WHERE id = $1 AND company_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, companyID)
+	return err
+}
+
+func (r *Repository) GetWarehouseByID(ctx context.Context, id, companyID string) (*Warehouse, error) {
+	query := `SELECT id, company_id, project_id, name, COALESCE(location, ''), created_at 
+	          FROM warehouses WHERE id = $1 AND company_id = $2`
+	var w Warehouse
+	err := r.db.QueryRowContext(ctx, query, id, companyID).Scan(&w.ID, &w.CompanyID, &w.ProjectID, &w.Name, &w.Location, &w.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &w, nil
+}
+
+func (r *Repository) UpdateWarehouse(ctx context.Context, w *Warehouse) error {
+	query := `UPDATE warehouses SET name = $1, location = $2 WHERE id = $3 AND company_id = $4`
+	_, err := r.db.ExecContext(ctx, query, w.Name, w.Location, w.ID, w.CompanyID)
+	return err
+}
+
+func (r *Repository) DeleteWarehouse(ctx context.Context, id, companyID string) error {
+	query := `DELETE FROM warehouses WHERE id = $1 AND company_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, companyID)
+	return err
+}

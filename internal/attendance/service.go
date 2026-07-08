@@ -40,3 +40,17 @@ func (s *Service) GetDailyReport(ctx context.Context, projectID string, date str
 	}
 	return s.repo.GetAttendanceByProjectAndDate(ctx, projectID, date)
 }
+
+func (s *Service) UpdateAttendanceLog(ctx context.Context, log *AttendanceLog) error {
+	if log.Status == "" {
+		return errors.New("el estado de asistencia es requerido")
+	}
+	if log.HoursWorked < 0 {
+		return errors.New("las horas trabajadas no pueden ser negativas")
+	}
+	return s.repo.UpdateAttendanceLog(ctx, log)
+}
+
+func (s *Service) DeleteAttendance(ctx context.Context, companyID, id string) error {
+	return s.repo.DeleteAttendance(ctx, companyID, id)
+}

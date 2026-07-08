@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"erp-constructora/internal/users"
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -16,7 +16,7 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) SaveAttendance(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -66,4 +66,54 @@ func (h *Handler) GetAttendance(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(report)
+}
+
+func (h *Handler) UpdateAttendanceLog(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el id del registro de asistencia", http.StatusBadRequest)
+		return
+	}
+
+	var req UpdateAttendanceLogRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	log := AttendanceLog{
+		ID:          id,
+		Status:      req.Status,
+		HoursWorked: req.HoursWorked,
+		Notes:       req.Notes,
+	}
+
+	if err := h.service.UpdateAttendanceLog(r.Context(), &log); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(log)
+}
+
+func (h *Handler) DeleteAttendance(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el id de la asistencia", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeleteAttendance(r.Context(), companyID, id); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }

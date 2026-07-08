@@ -91,3 +91,27 @@ func (r *Repository) GetContractsByProject(ctx context.Context, projectID string
 	}
 	return list, nil
 }
+
+func (r *Repository) UpdateContractor(ctx context.Context, c *Contractor) error {
+	query := `UPDATE contractors SET name = $1, nit = $2, representative = $3, phone = $4, email = $5, is_active = $6, updated_at = CURRENT_TIMESTAMP WHERE company_id = $7 AND id = $8`
+	_, err := r.db.ExecContext(ctx, query, c.Name, c.NIT, c.Representative, c.Phone, c.Email, c.IsActive, c.CompanyID, c.ID)
+	return err
+}
+
+func (r *Repository) DeleteContractor(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM contractors WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
+func (r *Repository) UpdateContract(ctx context.Context, cc *ContractorContract) error {
+	query := `UPDATE contractor_contracts SET title = $1, total_amount = $2, balance = $3, start_date = $4, end_date = $5, status = $6, updated_at = CURRENT_TIMESTAMP WHERE company_id = $7 AND id = $8`
+	_, err := r.db.ExecContext(ctx, query, cc.Title, cc.TotalAmount, cc.Balance, cc.StartDate, cc.EndDate, cc.Status, cc.CompanyID, cc.ID)
+	return err
+}
+
+func (r *Repository) DeleteContract(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM contractor_contracts WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}

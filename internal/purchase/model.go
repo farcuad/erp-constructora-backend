@@ -31,3 +31,9 @@ type PurchaseOrderItem struct {
 	UnitPrice       float64 `json:"unit_price"`
 	TotalPrice      float64 `json:"total_price"` // Calculado automáticamente por la BD
 }
+
+type UpdatePurchaseOrderRequest struct {
+	Status       *string `json:"status,omitempty"`
+	DeliveryDate *string `json:"delivery_date,omitempty"`
+	Notes        *string `json:"notes,omitempty"`
+}

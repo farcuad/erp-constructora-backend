@@ -40,3 +40,27 @@ func (s *Service) CreatePurchaseOrder(ctx context.Context, po *PurchaseOrder) er
 func (s *Service) ListOrdersByProject(ctx context.Context, projectID string) ([]PurchaseOrder, error) {
 	return s.repo.GetOrdersByProject(ctx, projectID)
 }
+
+func (s *Service) UpdatePurchaseOrder(ctx context.Context, id, companyID string, req *UpdatePurchaseOrderRequest) (*PurchaseOrder, error) {
+	po, err := s.repo.GetPurchaseOrderByID(ctx, id, companyID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Status != nil {
+		po.Status = *req.Status
+	}
+	if req.DeliveryDate != nil {
+		po.DeliveryDate = *req.DeliveryDate
+	}
+	if req.Notes != nil {
+		po.Notes = *req.Notes
+	}
+	if err := s.repo.UpdatePurchaseOrder(ctx, po); err != nil {
+		return nil, err
+	}
+	return po, nil
+}
+
+func (s *Service) DeletePurchaseOrder(ctx context.Context, id, companyID string) error {
+	return s.repo.DeletePurchaseOrder(ctx, id, companyID)
+}

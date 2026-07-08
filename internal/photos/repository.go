@@ -59,3 +59,28 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 	}
 	return photos, nil
 }
+
+func (r *Repository) Update(ctx context.Context, companyID, id string, req UpdatePhotoRequest) error {
+	query := `
+		UPDATE project_photos
+		SET description = COALESCE($1, description),
+		    latitude = COALESCE($2, latitude),
+		    longitude = COALESCE($3, longitude)
+		WHERE company_id = $4 AND id = $5`
+
+	var desc interface{}
+	if req.Description != nil {
+		desc = *req.Description
+	} else {
+		desc = nil
+	}
+
+	_, err := r.db.ExecContext(ctx, query, desc, req.Latitude, req.Longitude, companyID, id)
+	return err
+}
+
+func (r *Repository) Delete(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM project_photos WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}

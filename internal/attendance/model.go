@@ -12,6 +12,12 @@ type Attendance struct {
 	Logs      []AttendanceLog `json:"logs,omitempty"`
 }
 
+type UpdateAttendanceLogRequest struct {
+	Status      string  `json:"status"`
+	HoursWorked float64 `json:"hours_worked"`
+	Notes       string  `json:"notes,omitempty"`
+}
+
 type AttendanceLog struct {
 	ID           string    `json:"id"`
 	AttendanceID string    `json:"attendance_id"`

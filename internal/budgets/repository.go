@@ -3,11 +3,16 @@ package budgets
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 )
 
 type Repository interface {
 	CreateWithItems(ctx context.Context, companyID string, userID string, b *CreateBudgetWithItemsRequest) (*Budget, error)
 	GetBudgetsProjectID(ctx context.Context, companyID string, projectID string) ([]Budget, error)
+	GetByID(ctx context.Context, companyID string, id string) (*Budget, error)
+	Update(ctx context.Context, companyID string, id string, req *UpdateBudgetRequest) error
+	Delete(ctx context.Context, companyID string, id string) error
 }
 
 type repository struct {
@@ -81,6 +86,57 @@ func (r *repository) CreateWithItems(ctx context.Context, companyID string, user
 	}
 
 	return &budget, nil
+}
+
+func (r *repository) GetByID(ctx context.Context, companyID string, id string) (*Budget, error) {
+	query := `SELECT id, company_id, project_id, title, description, total_amount, created_at, updated_at
+			  FROM budgets WHERE company_id = $1 AND id = $2`
+
+	var budget Budget
+	err := r.db.QueryRowContext(ctx, query, companyID, id).Scan(
+		&budget.ID, &budget.CompanyID, &budget.ProjectID, &budget.Title, &budget.Description,
+		&budget.TotalAmount, &budget.CreatedAt, &budget.UpdatedAt,
+	)
+	if err != nil {
+		return nil, err
+	}
+	return &budget, nil
+}
+
+func (r *repository) Update(ctx context.Context, companyID string, id string, req *UpdateBudgetRequest) error {
+	var setClauses []string
+	var args []interface{}
+	argIdx := 1
+
+	if req.Title != nil {
+		setClauses = append(setClauses, fmt.Sprintf("title=$%d", argIdx))
+		args = append(args, *req.Title)
+		argIdx++
+	}
+	if req.Description != nil {
+		setClauses = append(setClauses, fmt.Sprintf("description=$%d", argIdx))
+		args = append(args, *req.Description)
+		argIdx++
+	}
+
+	if len(setClauses) == 0 {
+		return nil
+	}
+
+	setClauses = append(setClauses, fmt.Sprintf("updated_at=NOW()"))
+	args = append(args, companyID, id)
+
+	query := fmt.Sprintf("UPDATE budgets SET %s WHERE company_id=$%d AND id=$%d",
+		strings.Join(setClauses, ", "), argIdx, argIdx+1)
+
+	_, err := r.db.ExecContext(ctx, query, args...)
+	return err
+}
+
+func (r *repository) Delete(ctx context.Context, companyID string, id string) error {
+	query := `DELETE FROM budgets WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
 }
 
 func (r *repository) GetBudgetsProjectID(ctx context.Context, companyID string, projectID string) ([]Budget, error) {

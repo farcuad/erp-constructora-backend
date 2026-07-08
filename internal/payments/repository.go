@@ -56,6 +56,42 @@ func (r *Repository) CreateInvoice(ctx context.Context, inv *Invoice) error {
 	return tx.Commit()
 }
 
+func (r *Repository) UpdateInvoice(ctx context.Context, companyID, id string, req UpdateInvoiceRequest) error {
+	query := `
+		UPDATE invoices
+		SET status = COALESCE($1, status),
+		    notes = COALESCE($2, notes),
+		    due_date = COALESCE($3, due_date)
+		WHERE company_id = $4 AND id = $5`
+
+	var status, notes interface{}
+	if req.Status != nil {
+		status = *req.Status
+	} else {
+		status = nil
+	}
+	if req.Notes != nil {
+		notes = *req.Notes
+	} else {
+		notes = nil
+	}
+
+	_, err := r.db.ExecContext(ctx, query, status, notes, req.DueDate, companyID, id)
+	return err
+}
+
+func (r *Repository) DeleteInvoice(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM invoices WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
+func (r *Repository) CancelInvoice(ctx context.Context, companyID, id string) error {
+	query := `UPDATE invoices SET status = 'CANCELLED' WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
 func (r *Repository) RegisterPayment(ctx context.Context, p *Payment) error {
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {

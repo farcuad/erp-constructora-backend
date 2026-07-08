@@ -44,3 +44,17 @@ type MaintenanceRecord struct {
 	NextDueDate     string    `json:"next_due_date,omitempty"`
 	CreatedAt       time.Time `json:"created_at"`
 }
+
+type UpdateEquipmentRequest struct {
+	TypeID        *string `json:"type_id,omitempty"`
+	Name          *string `json:"name,omitempty"`
+	PlateNumber   *string `json:"plate_number,omitempty"`
+	Model         *string `json:"model,omitempty"`
+	Brand         *string `json:"brand,omitempty"`
+	Status        *string `json:"status,omitempty"`
+	OwnershipType *string `json:"ownership_type,omitempty"`
+}
+
+type UpdateEquipmentTypeRequest struct {
+	Name *string `json:"name,omitempty"`
+}

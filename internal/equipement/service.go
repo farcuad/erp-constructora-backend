@@ -40,3 +40,57 @@ func (s *Service) RegisterMaintenance(ctx context.Context, m *MaintenanceRecord)
 	}
 	return s.repo.CreateMaintenance(ctx, m)
 }
+
+func (s *Service) UpdateEquipment(ctx context.Context, id, companyID string, req *UpdateEquipmentRequest) (*Equipment, error) {
+	e, err := s.repo.GetEquipmentByID(ctx, id, companyID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Name != nil {
+		e.Name = *req.Name
+	}
+	if req.TypeID != nil {
+		e.TypeID = *req.TypeID
+	}
+	if req.PlateNumber != nil {
+		e.PlateNumber = *req.PlateNumber
+	}
+	if req.Model != nil {
+		e.Model = *req.Model
+	}
+	if req.Brand != nil {
+		e.Brand = *req.Brand
+	}
+	if req.Status != nil {
+		e.Status = *req.Status
+	}
+	if req.OwnershipType != nil {
+		e.OwnershipType = *req.OwnershipType
+	}
+	if err := s.repo.UpdateEquipment(ctx, e); err != nil {
+		return nil, err
+	}
+	return e, nil
+}
+
+func (s *Service) DeleteEquipment(ctx context.Context, id, companyID string) error {
+	return s.repo.DeleteEquipment(ctx, id, companyID)
+}
+
+func (s *Service) UpdateEquipmentType(ctx context.Context, id, companyID string, req *UpdateEquipmentTypeRequest) (*EquipmentType, error) {
+	et, err := s.repo.GetEquipmentTypeByID(ctx, id, companyID)
+	if err != nil {
+		return nil, err
+	}
+	if req.Name != nil {
+		et.Name = *req.Name
+	}
+	if err := s.repo.UpdateEquipmentType(ctx, et); err != nil {
+		return nil, err
+	}
+	return et, nil
+}
+
+func (s *Service) DeleteEquipmentType(ctx context.Context, id, companyID string) error {
+	return s.repo.DeleteEquipmentType(ctx, id, companyID)
+}

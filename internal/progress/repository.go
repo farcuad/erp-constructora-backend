@@ -118,10 +118,39 @@ func (r *Repository) GetReportWithProgress(ctx context.Context, companyID, proje
 		return nil, err
 	}
 
-	// Si no se encontró ningún registro, retornamos un error controlado de "no encontrado"
 	if report == nil {
 		return nil, sql.ErrNoRows
 	}
 
 	return report, nil
+}
+
+func (r *Repository) UpdateReport(ctx context.Context, companyID, id string, req UpdateDailyReportRequest) error {
+	query := `
+		UPDATE daily_reports
+		SET weather_condition = COALESCE($1, weather_condition),
+		    observations = COALESCE($2, observations),
+		    report_date = COALESCE($3, report_date)
+		WHERE company_id = $4 AND id = $5`
+
+	var weather, obs interface{}
+	if req.WeatherCondition != nil {
+		weather = *req.WeatherCondition
+	} else {
+		weather = nil
+	}
+	if req.Observations != nil {
+		obs = *req.Observations
+	} else {
+		obs = nil
+	}
+
+	_, err := r.db.ExecContext(ctx, query, weather, obs, req.ReportDate, companyID, id)
+	return err
+}
+
+func (r *Repository) DeleteReport(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM daily_reports WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
 }

@@ -67,3 +67,43 @@ func (r *Repository) CreateContract(ctx context.Context, c *Contract) error {
 	return r.db.QueryRowContext(ctx, query, c.EmployeeID, prjID, c.ContractType, c.Salary, c.StartDate, endDate).
 		Scan(&c.ID, &c.Status, &c.CreatedAt)
 }
+
+func (r *Repository) UpdatePosition(ctx context.Context, p *Position) error {
+	query := `UPDATE positions SET name = $1, base_salary = $2 WHERE company_id = $3 AND id = $4`
+	_, err := r.db.ExecContext(ctx, query, p.Name, p.BaseSalary, p.CompanyID, p.ID)
+	return err
+}
+
+func (r *Repository) DeletePosition(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM positions WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
+func (r *Repository) UpdateEmployee(ctx context.Context, e *Employee) error {
+	query := `UPDATE employees SET position_id = $1, first_name = $2, last_name = $3, dni = $4, phone = $5, email = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE company_id = $8 AND id = $9`
+	var posID interface{} = nil
+	if e.PositionID != "" {
+		posID = e.PositionID
+	}
+	_, err := r.db.ExecContext(ctx, query, posID, e.FirstName, e.LastName, e.DNI, e.Phone, e.Email, e.Status, e.CompanyID, e.ID)
+	return err
+}
+
+func (r *Repository) DeleteEmployee(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM employees WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
+func (r *Repository) UpdateContract(ctx context.Context, c *Contract) error {
+	query := `UPDATE contracts SET contract_type = $1, salary = $2, start_date = $3, end_date = $4, status = $5 WHERE id = $6`
+	_, err := r.db.ExecContext(ctx, query, c.ContractType, c.Salary, c.StartDate, c.EndDate, c.Status, c.ID)
+	return err
+}
+
+func (r *Repository) DeleteContract(ctx context.Context, id string) error {
+	query := `DELETE FROM contracts WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}

@@ -25,3 +25,12 @@ type CreateProjectDTO struct {
 	EndDate   time.Time `json:"end_date"`
 	Budget    float64   `json:"budget"`
 }
+
+type UpdateProjectDTO struct {
+	Name      *string    `json:"name"`
+	ClientID  *string    `json:"client_id"`
+	Location  *string    `json:"location"`
+	StartDate *time.Time `json:"start_date"`
+	EndDate   *time.Time `json:"end_date"`
+	Budget    *float64   `json:"budget"`
+}

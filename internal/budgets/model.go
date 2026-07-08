@@ -38,3 +38,8 @@ type CreateBudgetWithItemsRequest struct {
 	Description string              `json:"description"`
 	Items       []BudgetItemRequest `json:"items"`
 }
+
+type UpdateBudgetRequest struct {
+	Title       *string `json:"title"`
+	Description *string `json:"description"`
+}

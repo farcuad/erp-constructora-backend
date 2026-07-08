@@ -4,6 +4,12 @@ import (
 	"time"
 )
 
+type UpdatePhotoRequest struct {
+	Description *string  `json:"description,omitempty"`
+	Latitude    *float64 `json:"latitude,omitempty"`
+	Longitude   *float64 `json:"longitude,omitempty"`
+}
+
 type ProjectPhoto struct {
 	ID            string    `json:"id"`
 	CompanyID     string    `json:"company_id"`

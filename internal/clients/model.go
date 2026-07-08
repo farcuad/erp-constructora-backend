@@ -22,3 +22,11 @@ type CreateClientRequest struct {
 	Phone   string `json:"phone"`
 	Email   string `json:"email"`
 }
+
+type UpdateClientRequest struct {
+	Name    *string `json:"name"`
+	NIT     *string `json:"nit"`
+	Address *string `json:"address"`
+	Phone   *string `json:"phone"`
+	Email   *string `json:"email"`
+}

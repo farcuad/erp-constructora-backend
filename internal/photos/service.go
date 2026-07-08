@@ -26,3 +26,17 @@ func (s *Service) GetProjectGallery(ctx context.Context, companyID, projectID st
 	}
 	return s.repo.GetByProject(ctx, companyID, projectID)
 }
+
+func (s *Service) UpdatePhoto(ctx context.Context, companyID, id string, req UpdatePhotoRequest) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y de la foto son requeridos")
+	}
+	return s.repo.Update(ctx, companyID, id, req)
+}
+
+func (s *Service) DeletePhoto(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y de la foto son requeridos")
+	}
+	return s.repo.Delete(ctx, companyID, id)
+}

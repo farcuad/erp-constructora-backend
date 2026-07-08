@@ -33,3 +33,31 @@ func (s *Service) UploadNewVersion(ctx context.Context, ver *DocumentVersion) er
 	}
 	return s.repo.AddNewVersion(ctx, ver)
 }
+
+func (s *Service) UpdateDocumentType(ctx context.Context, companyID, id string, req UpdateDocumentTypeRequest) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y del tipo de documento son requeridos")
+	}
+	return s.repo.UpdateType(ctx, companyID, id, req)
+}
+
+func (s *Service) DeleteDocumentType(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y del tipo de documento son requeridos")
+	}
+	return s.repo.DeleteType(ctx, companyID, id)
+}
+
+func (s *Service) UpdateDocument(ctx context.Context, companyID, id string, req UpdateDocumentRequest) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y del documento son requeridos")
+	}
+	return s.repo.UpdateDocument(ctx, companyID, id, req)
+}
+
+func (s *Service) DeleteDocument(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y del documento son requeridos")
+	}
+	return s.repo.DeleteDocument(ctx, companyID, id)
+}

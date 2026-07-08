@@ -43,3 +43,25 @@ func (s *Service) CreateMilestone(ctx context.Context, m *Milestone) error {
 func (s *Service) GetProjectTasks(ctx context.Context, projectID string) ([]Task, error) {
 	return s.repo.GetScheduleByProject(ctx, projectID)
 }
+
+func (s *Service) UpdateTask(ctx context.Context, t *Task) error {
+	if t.Name == "" || t.StartDate == "" || t.EndDate == "" {
+		return errors.New("nombre de tarea, fecha de inicio y fin son mandatorios")
+	}
+	return s.repo.UpdateTask(ctx, t)
+}
+
+func (s *Service) DeleteTask(ctx context.Context, id string) error {
+	return s.repo.DeleteTask(ctx, id)
+}
+
+func (s *Service) UpdateMilestone(ctx context.Context, m *Milestone) error {
+	if m.Name == "" || m.DueDate == "" {
+		return errors.New("nombre y fecha del hito son requeridos")
+	}
+	return s.repo.UpdateMilestone(ctx, m)
+}
+
+func (s *Service) DeleteMilestone(ctx context.Context, id string) error {
+	return s.repo.DeleteMilestone(ctx, id)
+}

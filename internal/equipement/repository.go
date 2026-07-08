@@ -106,3 +106,52 @@ func (r *Repository) CreateMaintenance(ctx context.Context, m *MaintenanceRecord
 
 	return tx.Commit()
 }
+
+func (r *Repository) GetEquipmentByID(ctx context.Context, id, companyID string) (*Equipment, error) {
+	query := `SELECT id, company_id, COALESCE(type_id::text, ''), name, COALESCE(plate_number, ''), COALESCE(model, ''), COALESCE(brand, ''), status, ownership_type, created_at, updated_at 
+	          FROM equipment WHERE id = $1 AND company_id = $2`
+	var e Equipment
+	err := r.db.QueryRowContext(ctx, query, id, companyID).Scan(&e.ID, &e.CompanyID, &e.TypeID, &e.Name, &e.PlateNumber, &e.Model, &e.Brand, &e.Status, &e.OwnershipType, &e.CreatedAt, &e.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &e, nil
+}
+
+func (r *Repository) UpdateEquipment(ctx context.Context, e *Equipment) error {
+	var typeID interface{} = nil
+	if e.TypeID != "" {
+		typeID = e.TypeID
+	}
+	query := `UPDATE equipment SET type_id = $1, name = $2, plate_number = $3, model = $4, brand = $5, status = $6, ownership_type = $7, updated_at = CURRENT_TIMESTAMP WHERE id = $8 AND company_id = $9`
+	_, err := r.db.ExecContext(ctx, query, typeID, e.Name, e.PlateNumber, e.Model, e.Brand, e.Status, e.OwnershipType, e.ID, e.CompanyID)
+	return err
+}
+
+func (r *Repository) DeleteEquipment(ctx context.Context, id, companyID string) error {
+	query := `DELETE FROM equipment WHERE id = $1 AND company_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, companyID)
+	return err
+}
+
+func (r *Repository) GetEquipmentTypeByID(ctx context.Context, id, companyID string) (*EquipmentType, error) {
+	query := `SELECT id, company_id, name, created_at FROM equipment_types WHERE id = $1 AND company_id = $2`
+	var et EquipmentType
+	err := r.db.QueryRowContext(ctx, query, id, companyID).Scan(&et.ID, &et.CompanyID, &et.Name, &et.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &et, nil
+}
+
+func (r *Repository) UpdateEquipmentType(ctx context.Context, et *EquipmentType) error {
+	query := `UPDATE equipment_types SET name = $1 WHERE id = $2 AND company_id = $3`
+	_, err := r.db.ExecContext(ctx, query, et.Name, et.ID, et.CompanyID)
+	return err
+}
+
+func (r *Repository) DeleteEquipmentType(ctx context.Context, id, companyID string) error {
+	query := `DELETE FROM equipment_types WHERE id = $1 AND company_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, companyID)
+	return err
+}

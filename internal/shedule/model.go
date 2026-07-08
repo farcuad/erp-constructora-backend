@@ -2,6 +2,21 @@ package schedule
 
 import "time"
 
+type UpdateTaskRequest struct {
+	Name        string  `json:"name"`
+	Description string  `json:"description,omitempty"`
+	StartDate   string  `json:"start_date"`
+	EndDate     string  `json:"end_date"`
+	Progress    float64 `json:"progress"`
+	Status      string  `json:"status"`
+}
+
+type UpdateMilestoneRequest struct {
+	Name       string `json:"name"`
+	DueDate    string `json:"due_date"`
+	IsAchieved *bool  `json:"is_achieved,omitempty"`
+}
+
 type Task struct {
 	ID           string           `json:"id"`
 	ProjectID    string           `json:"project_id"`

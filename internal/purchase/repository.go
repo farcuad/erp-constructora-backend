@@ -75,3 +75,30 @@ func (r *Repository) GetOrdersByProject(ctx context.Context, projectID string) (
 	}
 	return orders, nil
 }
+
+func (r *Repository) GetPurchaseOrderByID(ctx context.Context, id, companyID string) (*PurchaseOrder, error) {
+	query := `SELECT id, company_id, project_id, supplier_id, user_id, order_number, status, total_amount, COALESCE(delivery_date::text, ''), notes, created_at, updated_at 
+	          FROM purchase_orders WHERE id = $1 AND company_id = $2`
+	var po PurchaseOrder
+	err := r.db.QueryRowContext(ctx, query, id, companyID).Scan(&po.ID, &po.CompanyID, &po.ProjectID, &po.SupplierID, &po.UserID, &po.OrderNumber, &po.Status, &po.TotalAmount, &po.DeliveryDate, &po.Notes, &po.CreatedAt, &po.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &po, nil
+}
+
+func (r *Repository) UpdatePurchaseOrder(ctx context.Context, po *PurchaseOrder) error {
+	var deliveryDate interface{} = nil
+	if po.DeliveryDate != "" {
+		deliveryDate = po.DeliveryDate
+	}
+	query := `UPDATE purchase_orders SET status = $1, delivery_date = $2, notes = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 AND company_id = $5`
+	_, err := r.db.ExecContext(ctx, query, po.Status, deliveryDate, po.Notes, po.ID, po.CompanyID)
+	return err
+}
+
+func (r *Repository) DeletePurchaseOrder(ctx context.Context, id, companyID string) error {
+	query := `DELETE FROM purchase_orders WHERE id = $1 AND company_id = $2`
+	_, err := r.db.ExecContext(ctx, query, id, companyID)
+	return err
+}

@@ -13,6 +13,29 @@ func NewService(repo *Repository) *Service {
 	return &Service{repo: repo}
 }
 
+func (s *Service) UpdateProject(ctx context.Context, companyID string, id string, dto UpdateProjectDTO) (*Project, error) {
+	if dto.Name != nil && *dto.Name == "" {
+		return nil, errors.New("el nombre del proyecto no puede estar vacío")
+	}
+	if dto.Budget != nil && *dto.Budget <= 0 {
+		return nil, errors.New("el presupuesto del proyecto debe ser mayor a cero")
+	}
+	if dto.StartDate != nil && dto.EndDate != nil && dto.EndDate.Before(*dto.StartDate) {
+		return nil, errors.New("la fecha de fin no puede ser anterior a la fecha de inicio")
+	}
+
+	err := s.repo.Update(ctx, companyID, id, dto)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.GetByID(ctx, companyID, id)
+}
+
+func (s *Service) DeleteProject(ctx context.Context, companyID string, id string) error {
+	return s.repo.Delete(ctx, companyID, id)
+}
+
 func (s *Service) CreateProject(ctx context.Context, companyID string, dto CreateProjectDTO) (*Project, error) {
 	// Regla de Negocio 1: Validaciones de lógica financiera y de fechas
 	if dto.Budget <= 0 {

@@ -95,3 +95,68 @@ func (r *Repository) AddNewVersion(ctx context.Context, ver *DocumentVersion) er
 
 	return tx.Commit()
 }
+
+func (r *Repository) UpdateType(ctx context.Context, companyID, id string, req UpdateDocumentTypeRequest) error {
+	query := `
+		UPDATE document_types
+		SET name = COALESCE($1, name),
+		    description = COALESCE($2, description)
+		WHERE company_id = $3 AND id = $4`
+
+	var name, desc interface{}
+	if req.Name != nil {
+		name = *req.Name
+	} else {
+		name = nil
+	}
+	if req.Description != nil {
+		desc = *req.Description
+	} else {
+		desc = nil
+	}
+
+	_, err := r.db.ExecContext(ctx, query, name, desc, companyID, id)
+	return err
+}
+
+func (r *Repository) DeleteType(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM document_types WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
+func (r *Repository) UpdateDocument(ctx context.Context, companyID, id string, req UpdateDocumentRequest) error {
+	query := `
+		UPDATE documents
+		SET title = COALESCE($1, title),
+		    description = COALESCE($2, description),
+		    document_type_id = COALESCE($3, document_type_id),
+		    updated_at = CURRENT_TIMESTAMP
+		WHERE company_id = $4 AND id = $5`
+
+	var title, desc, dtID interface{}
+	if req.Title != nil {
+		title = *req.Title
+	} else {
+		title = nil
+	}
+	if req.Description != nil {
+		desc = *req.Description
+	} else {
+		desc = nil
+	}
+	if req.DocumentTypeID != nil {
+		dtID = *req.DocumentTypeID
+	} else {
+		dtID = nil
+	}
+
+	_, err := r.db.ExecContext(ctx, query, title, desc, dtID, companyID, id)
+	return err
+}
+
+func (r *Repository) DeleteDocument(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM documents WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}

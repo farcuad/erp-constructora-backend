@@ -71,7 +71,17 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 		return err
 	}
 
-	// 6. Si todo salió bien, guardamos los cambios permanentemente en la DB
+	// 6. Crear suscripción trial por defecto para la nueva empresa
+	querySub := `
+		INSERT INTO companies_subscriptions (company_id, status, start_date, trial_end_date, price, billing_cycle, max_projects, max_users, max_storage_mb)
+		VALUES ($1, 'trial', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP + INTERVAL '14 days', 0, 'monthly', 1, 3, 100)`
+
+	_, err = tx.ExecContext(ctx, querySub, comp.ID)
+	if err != nil {
+		return err
+	}
+
+	// 7. Si todo salió bien, guardamos los cambios permanentemente en la DB
 	return tx.Commit()
 }
 

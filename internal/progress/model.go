@@ -16,6 +16,12 @@ type DailyReport struct {
 	ProgressEntries  []ProgressEntry `json:"progress_entries,omitempty"`
 }
 
+type UpdateDailyReportRequest struct {
+	WeatherCondition *string    `json:"weather_condition,omitempty"`
+	Observations     *string    `json:"observations,omitempty"`
+	ReportDate       *time.Time `json:"report_date,omitempty"`
+}
+
 type ProgressEntry struct {
 	ID                 string  `json:"id"`
 	CompanyID          string  `json:"company_id"`

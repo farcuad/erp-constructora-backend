@@ -1,4 +1,4 @@
-package users
+package middlewares
 
 import (
 	"context"

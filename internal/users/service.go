@@ -8,6 +8,8 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+
+	"erp-constructora/internal/middlewares"
 )
 
 type Service struct {
@@ -86,7 +88,7 @@ func (s *Service) generateJwt(user *User) (string, error) {
 	}
 
 	// Crear los Claims (Carga útil del token)
-	claims := JWTClaims{
+	claims := middlewares.JWTClaims{
 		UserID:    user.ID,
 		CompanyID: user.CompanyID,
 		RegisteredClaims: jwt.RegisteredClaims{

@@ -79,6 +79,12 @@ func (r *Repository) GetUserNotifications(ctx context.Context, companyID, userID
 	return list, nil
 }
 
+func (r *Repository) Delete(ctx context.Context, companyID, id string) error {
+	query := `DELETE FROM notifications WHERE company_id = $1 AND id = $2`
+	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	return err
+}
+
 func (r *Repository) MarkAsRead(ctx context.Context, companyID, notificationID, userID string) error {
 	query := `
         UPDATE notification_reads 

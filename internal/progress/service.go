@@ -45,3 +45,17 @@ func (s *Service) GetDailyReport(ctx context.Context, companyID, projectID, date
 	// Llamada limpia pasando los parámetros correspondientes
 	return s.repo.GetReportWithProgress(ctx, companyID, projectID, date)
 }
+
+func (s *Service) UpdateDailyReport(ctx context.Context, companyID, id string, req UpdateDailyReportRequest) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y del reporte son requeridos")
+	}
+	return s.repo.UpdateReport(ctx, companyID, id, req)
+}
+
+func (s *Service) DeleteDailyReport(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y del reporte son requeridos")
+	}
+	return s.repo.DeleteReport(ctx, companyID, id)
+}

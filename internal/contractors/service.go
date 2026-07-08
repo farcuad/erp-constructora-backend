@@ -37,3 +37,25 @@ func (s *Service) AddPayment(ctx context.Context, p *ContractorPayment) error {
 func (s *Service) ListContractsByProject(ctx context.Context, projectID string) ([]ContractorContract, error) {
 	return s.repo.GetContractsByProject(ctx, projectID)
 }
+
+func (s *Service) UpdateContractor(ctx context.Context, c *Contractor) error {
+	if c.Name == "" || c.NIT == "" {
+		return errors.New("la razón social y la identificación fiscal (NIT) son requeridas")
+	}
+	return s.repo.UpdateContractor(ctx, c)
+}
+
+func (s *Service) DeleteContractor(ctx context.Context, companyID, id string) error {
+	return s.repo.DeleteContractor(ctx, companyID, id)
+}
+
+func (s *Service) UpdateContract(ctx context.Context, cc *ContractorContract) error {
+	if cc.Title == "" || cc.TotalAmount <= 0 || cc.StartDate == "" {
+		return errors.New("título, monto (mayor a cero) y fecha de inicio son mandatorios")
+	}
+	return s.repo.UpdateContract(ctx, cc)
+}
+
+func (s *Service) DeleteContract(ctx context.Context, companyID, id string) error {
+	return s.repo.DeleteContract(ctx, companyID, id)
+}

@@ -55,3 +55,27 @@ func (r *Repository) GetScheduleByProject(ctx context.Context, projectID string)
 	}
 	return tasks, nil
 }
+
+func (r *Repository) UpdateTask(ctx context.Context, t *Task) error {
+	query := `UPDATE tasks SET name = $1, description = $2, start_date = $3, end_date = $4, progress = $5, status = $6, updated_at = CURRENT_TIMESTAMP WHERE id = $7`
+	_, err := r.db.ExecContext(ctx, query, t.Name, t.Description, t.StartDate, t.EndDate, t.Progress, t.Status, t.ID)
+	return err
+}
+
+func (r *Repository) DeleteTask(ctx context.Context, id string) error {
+	query := `DELETE FROM tasks WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}
+
+func (r *Repository) UpdateMilestone(ctx context.Context, m *Milestone) error {
+	query := `UPDATE milestones SET name = $1, due_date = $2, is_achieved = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4`
+	_, err := r.db.ExecContext(ctx, query, m.Name, m.DueDate, m.IsAchieved, m.ID)
+	return err
+}
+
+func (r *Repository) DeleteMilestone(ctx context.Context, id string) error {
+	query := `DELETE FROM milestones WHERE id = $1`
+	_, err := r.db.ExecContext(ctx, query, id)
+	return err
+}

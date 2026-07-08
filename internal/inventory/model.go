@@ -49,3 +49,15 @@ type MaterialStock struct {
 	Unit         string  `json:"unit"`
 	Quantity     float64 `json:"quantity"`
 }
+
+type UpdateMaterialRequest struct {
+	Name       *string `json:"name,omitempty"`
+	Code       *string `json:"code,omitempty"`
+	Unit       *string `json:"unit,omitempty"`
+	CategoryID *string `json:"category_id,omitempty"`
+}
+
+type UpdateWarehouseRequest struct {
+	Name     *string `json:"name,omitempty"`
+	Location *string `json:"location,omitempty"`
+}

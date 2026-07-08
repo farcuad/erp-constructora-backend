@@ -30,3 +30,24 @@ func (s *Service) ProcessPayment(ctx context.Context, p *Payment) error {
 	}
 	return s.repo.RegisterPayment(ctx, p)
 }
+
+func (s *Service) UpdateInvoice(ctx context.Context, companyID, id string, req UpdateInvoiceRequest) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y de la factura son requeridos")
+	}
+	return s.repo.UpdateInvoice(ctx, companyID, id, req)
+}
+
+func (s *Service) DeleteInvoice(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y de la factura son requeridos")
+	}
+	return s.repo.DeleteInvoice(ctx, companyID, id)
+}
+
+func (s *Service) CancelInvoice(ctx context.Context, companyID, id string) error {
+	if companyID == "" || id == "" {
+		return errors.New("el id de la empresa y de la factura son requeridos")
+	}
+	return s.repo.CancelInvoice(ctx, companyID, id)
+}

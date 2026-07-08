@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"erp-constructora/internal/users"
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -19,8 +19,8 @@ func NewHandler(service *Service) *Handler {
 
 func (h *Handler) CreatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	// 1. Extraer tanto el company_id como el user_id usando tus helpers nativos
-	companyID, okCompany := users.GetCompanyIDFromContext(r.Context())
-	userID, okUser := users.GetUserIDFromContext(r.Context())
+	companyID, okCompany := middlewares.GetCompanyIDFromContext(r.Context())
+	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 
 	if !okCompany || !okUser {
 		http.Error(w, "Credenciales de usuario o empresa no válidas en el contexto", http.StatusUnauthorized)
@@ -63,4 +63,55 @@ func (h *Handler) GetOrdersByProject(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(orders)
+}
+
+func (h *Handler) UpdatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	var req UpdatePurchaseOrderRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	po, err := h.service.UpdatePurchaseOrder(r.Context(), id, companyID, &req)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(po)
+}
+
+func (h *Handler) DeletePurchaseOrder(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		return
+	}
+
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	if err := h.service.DeletePurchaseOrder(r.Context(), id, companyID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "recurso eliminado"})
 }

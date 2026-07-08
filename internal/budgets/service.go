@@ -8,6 +8,8 @@ import (
 type Service interface {
 	CreateInitialBudget(ctx context.Context, companyID string, userID string, req *CreateBudgetWithItemsRequest) (*Budget, error)
 	GetBudgetsProjectID(ctx context.Context, companyID string, projectID string) ([]Budget, error)
+	UpdateBudget(ctx context.Context, companyID string, id string, req *UpdateBudgetRequest) (*Budget, error)
+	DeleteBudget(ctx context.Context, companyID string, id string) error
 }
 
 type service struct {
@@ -26,6 +28,21 @@ func (s *service) CreateInitialBudget(ctx context.Context, companyID string, use
 		return nil, errors.New("el presupuesto debe contener al menos un ítem")
 	}
 	return s.repo.CreateWithItems(ctx, companyID, userID, req)
+}
+
+func (s *service) UpdateBudget(ctx context.Context, companyID string, id string, req *UpdateBudgetRequest) (*Budget, error) {
+	if req.Title != nil && *req.Title == "" {
+		return nil, errors.New("el título no puede estar vacío")
+	}
+	err := s.repo.Update(ctx, companyID, id, req)
+	if err != nil {
+		return nil, err
+	}
+	return s.repo.GetByID(ctx, companyID, id)
+}
+
+func (s *service) DeleteBudget(ctx context.Context, companyID string, id string) error {
+	return s.repo.Delete(ctx, companyID, id)
 }
 
 func (s *service) GetBudgetsProjectID(ctx context.Context, companyID string, projectID string) ([]Budget, error) {
