@@ -53,25 +53,32 @@ func (h *Handler) RegisterCompanyAndAdmin(w http.ResponseWriter, r *http.Request
 }
 
 func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+	// Forzar que siempre que salgamos con un error o éxito, el cliente sepa que es JSON
+	w.Header().Set("Content-Type", "application/json")
+
 	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed) // 405
+		json.NewEncoder(w).Encode(map[string]string{"message": "Método no permitido"})
 		return
 	}
 
 	var dto LoginDto
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest) // 400
+		json.NewEncoder(w).Encode(map[string]string{"message": "JSON inválido: " + err.Error()})
 		return
 	}
 
 	if dto.Email == "" || dto.Password == "" {
-		http.Error(w, "Todos los campos son obligatorios", http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest) // 400
+		json.NewEncoder(w).Encode(map[string]string{"message": "Todos los campos son obligatorios"})
 		return
 	}
 
 	token, err := h.service.Login(r.Context(), dto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		w.WriteHeader(http.StatusUnauthorized) // 401
+		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
 		return
 	}
 
@@ -80,7 +87,6 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		"token":   token,
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
+	w.WriteHeader(http.StatusOK) // 200
 	json.NewEncoder(w).Encode(response)
 }
