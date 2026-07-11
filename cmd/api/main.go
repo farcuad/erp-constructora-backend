@@ -10,6 +10,24 @@ import (
 	"github.com/joho/godotenv"
 )
 
+func enableCORS(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Permitimos el origen de tu frontend en desarrollo local
+		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
+		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
+		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
+
+		// IMPORTANTE: Manejar la petición Preflight (OPTIONS) que hace Axios/browser automáticamente
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		// Si no es OPTIONS, continúa con la ruta normal (Login, etc.)
+		next.ServeHTTP(w, r)
+	})
+}
+
 func main() {
 	// 1. Cargar el archivo .env que está en la raíz del proyecto
 	// Como el ejecutable se corre desde la raíz, buscará el archivo .env ahí de forma nativa
@@ -48,7 +66,7 @@ func main() {
 	}
 
 	log.Printf("Servidor corriendo en el puerto :%s...", port)
-	if err := http.ListenAndServe(":"+port, router); err != nil {
+	if err := http.ListenAndServe(":"+port, enableCORS(router)); err != nil {
 		log.Fatal(err)
 	}
 }
