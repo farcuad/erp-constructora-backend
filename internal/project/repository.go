@@ -102,7 +102,7 @@ func (r *Repository) Delete(ctx context.Context, companyID string, id string) er
 
 func (r *Repository) GetAll(ctx context.Context, companyID string) ([]Project, error) {
 	query := `
-		SELECT id, company_id, name, client_id, location, start_date, end_date, budget, status_id, created_at, updated_at 
+		SELECT id, company_id, name, client_name, location, start_date, end_date, budget, status_id, created_at, updated_at 
 		FROM projects 
 		WHERE company_id = $1 
 		ORDER BY created_at DESC`

@@ -40,9 +40,9 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := r.Context().Value("company_id").(string)
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyID == "" {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
 		return
 	}
 
