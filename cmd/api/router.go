@@ -163,6 +163,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("PUT /materials/{id}", auth(http.HandlerFunc(inventoryHandler.UpdateMaterial)))
 	mux.Handle("DELETE /materials/{id}", auth(http.HandlerFunc(inventoryHandler.DeleteMaterial)))
 	mux.Handle("POST /warehouses", auth(http.HandlerFunc(inventoryHandler.CreateWarehouse)))
+	mux.Handle("GET /warehouses", auth(http.HandlerFunc(inventoryHandler.GetAllWarehouses)))
 	mux.Handle("PUT /warehouses/{id}", auth(http.HandlerFunc(inventoryHandler.UpdateWarehouse)))
 	mux.Handle("DELETE /warehouses/{id}", auth(http.HandlerFunc(inventoryHandler.DeleteWarehouse)))
 	mux.Handle("POST /inventory/movements", auth(http.HandlerFunc(inventoryHandler.PostMovement)))
@@ -174,10 +175,13 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("PUT /equipment/{id}", auth(http.HandlerFunc(equipementHandler.UpdateEquipment)))
 	mux.Handle("DELETE /equipment/{id}", auth(http.HandlerFunc(equipementHandler.DeleteEquipment)))
 	mux.Handle("POST /equipment/assignments", auth(http.HandlerFunc(equipementHandler.Assign)))
+	mux.Handle("GET /equipment/assignments/{equipment_id}", auth(http.HandlerFunc(equipementHandler.GetAssignment)))
 	mux.Handle("POST /equipment/maintenances", auth(http.HandlerFunc(equipementHandler.Maintenance)))
+	mux.Handle("GET /equipment/maintenances/{equipment_id}", auth(http.HandlerFunc(equipementHandler.GetMaintenanceById)))
 
 	// --- Personnel ---
 	mux.Handle("POST /positions", auth(http.HandlerFunc(personnelHandler.CreatePosition)))
+	mux.Handle("GET /positions", auth(http.HandlerFunc(personnelHandler.GetAllPositions)))
 	mux.Handle("PUT /positions/{id}", auth(http.HandlerFunc(personnelHandler.UpdatePosition)))
 	mux.Handle("DELETE /positions/{id}", auth(http.HandlerFunc(personnelHandler.DeletePosition)))
 	mux.Handle("POST /employees", auth(http.HandlerFunc(personnelHandler.CreateEmployee)))
@@ -185,6 +189,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("PUT /employees/{id}", auth(http.HandlerFunc(personnelHandler.UpdateEmployee)))
 	mux.Handle("DELETE /employees/{id}", auth(http.HandlerFunc(personnelHandler.DeleteEmployee)))
 	mux.Handle("POST /contracts", auth(http.HandlerFunc(personnelHandler.CreateContract)))
+	mux.Handle("GET /contracts", auth(http.HandlerFunc(personnelHandler.GetALlContracts)))
 	mux.Handle("PUT /contracts/{id}", auth(http.HandlerFunc(personnelHandler.UpdateContract)))
 	mux.Handle("DELETE /contracts/{id}", auth(http.HandlerFunc(personnelHandler.DeleteContract)))
 
@@ -196,13 +201,15 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	// --- Contractors ---
 	mux.Handle("POST /contractors", auth(http.HandlerFunc(contractorsHandler.CreateContractor)))
+	mux.Handle("GET /contractors", auth(http.HandlerFunc(contractorsHandler.GetALlContracts)))
 	mux.Handle("PUT /contractors/{id}", auth(http.HandlerFunc(contractorsHandler.UpdateContractor)))
 	mux.Handle("DELETE /contractors/{id}", auth(http.HandlerFunc(contractorsHandler.DeleteContractor)))
 	mux.Handle("POST /contractors/contracts", auth(http.HandlerFunc(contractorsHandler.CreateContract)))
+	mux.Handle("GET /contractors/contracts/{project_id}", auth(http.HandlerFunc(contractorsHandler.GetContracts)))
 	mux.Handle("PUT /contractors/contracts/{id}", auth(http.HandlerFunc(contractorsHandler.UpdateContractorContract)))
 	mux.Handle("DELETE /contractors/contracts/{id}", auth(http.HandlerFunc(contractorsHandler.DeleteContractorContract)))
 	mux.Handle("POST /contractors/payments", auth(http.HandlerFunc(contractorsHandler.PostPayment)))
-	mux.Handle("GET /contractors/contracts/{project_id}", auth(http.HandlerFunc(contractorsHandler.GetContracts)))
+	mux.Handle("GET /contractors/payments", auth(http.HandlerFunc(contractorsHandler.GetAllContractPayments)))
 
 	// --- Schedule ---
 	mux.Handle("POST /schedule/tasks", auth(http.HandlerFunc(sheduleHandler.CreateTask)))

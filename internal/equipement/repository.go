@@ -107,6 +107,36 @@ func (r *Repository) CreateMaintenance(ctx context.Context, m *MaintenanceRecord
 	return tx.Commit()
 }
 
+func (r *Repository) GetEquipementMaintenance(ctx context.Context, equipmentID string) ([]*MaintenanceRecord, error) {
+	// IMPORTANTE: El filtro ahora busca por el ID del equipo (equipment_id)
+	query := `SELECT id, equipment_id, maintenance_type, description, cost, maintenance_date, next_due_date, created_at
+              FROM maintenance_records 
+              WHERE equipment_id = $1 `
+
+	rows, err := r.db.QueryContext(ctx, query, equipmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*MaintenanceRecord
+	for rows.Next() {
+		var et MaintenanceRecord
+		err := rows.Scan(&et.ID, &et.EquipmentID, &et.MaintenanceType, &et.Description,
+			&et.Cost, &et.MaintenanceDate, &et.NextDueDate, &et.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, &et)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
+
 func (r *Repository) GetEquipmentByID(ctx context.Context, id, companyID string) (*Equipment, error) {
 	query := `SELECT id, company_id, COALESCE(type_id::text, ''), name, COALESCE(plate_number, ''), COALESCE(model, ''), COALESCE(brand, ''), status, ownership_type, created_at, updated_at 
 	          FROM equipment WHERE id = $1 AND company_id = $2`
@@ -116,6 +146,38 @@ func (r *Repository) GetEquipmentByID(ctx context.Context, id, companyID string)
 		return nil, err
 	}
 	return &e, nil
+}
+
+func (r *Repository) GetEquipementAssignment(ctx context.Context, equipmentID string) ([]*EquipmentAssignment, error) {
+	query := `SELECT id, equipment_id, project_id, assigned_by, start_date, 
+                 COALESCE(end_date::text, ''), 
+                 COALESCE(notes, ''), 
+                 created_at
+          FROM equipment_assignments 
+          WHERE equipment_id = $1`
+
+	rows, err := r.db.QueryContext(ctx, query, equipmentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var records []*EquipmentAssignment
+	for rows.Next() {
+		var et EquipmentAssignment
+		err := rows.Scan(&et.ID, &et.EquipmentID, &et.ProjectID, &et.AssignedBy,
+			&et.StartDate, &et.EndDate, &et.Notes, &et.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		records = append(records, &et)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return records, nil
 }
 
 func (r *Repository) UpdateEquipment(ctx context.Context, e *Equipment) error {

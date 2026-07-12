@@ -87,6 +87,34 @@ func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
+func (h *Handler) GetAllContractPayments(w http.ResponseWriter, r *http.Request) {
+	suppliers, err := h.service.GetAllContractPayment(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(suppliers)
+}
+
+func (h *Handler) GetALlContracts(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	suppliers, err := h.service.GetALlContract(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(suppliers)
+}
+
 func (h *Handler) GetContracts(w http.ResponseWriter, r *http.Request) {
 	// Aplicando tu estilo de ruta limpia /{project_id}
 	projectID := r.PathValue("project_id")

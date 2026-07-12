@@ -68,6 +68,25 @@ func (r *Repository) CreateContract(ctx context.Context, c *Contract) error {
 		Scan(&c.ID, &c.Status, &c.CreatedAt)
 }
 
+func (r *Repository) GetPosition(ctx context.Context, companyID string) ([]Position, error) {
+	query := `SELECT id, company_id, name, base_salary, created_at
+	          FROM positions WHERE company_id = $1`
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var positions []Position
+	for rows.Next() {
+		var e Position
+		if err := rows.Scan(&e.ID, &e.CompanyID, &e.Name, &e.BaseSalary, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		positions = append(positions, e)
+	}
+	return positions, nil
+}
 func (r *Repository) UpdatePosition(ctx context.Context, p *Position) error {
 	query := `UPDATE positions SET name = $1, base_salary = $2 WHERE company_id = $3 AND id = $4`
 	_, err := r.db.ExecContext(ctx, query, p.Name, p.BaseSalary, p.CompanyID, p.ID)
@@ -96,6 +115,26 @@ func (r *Repository) DeleteEmployee(ctx context.Context, companyID, id string) e
 	return err
 }
 
+func (r *Repository) GetContract(ctx context.Context, companyID string) ([]Contract, error) {
+	query := `SELECT id, employee_id, project_id, contract_type, salary, start_date, end_date, status
+	          FROM contracts WHERE company_id = $1`
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contracts []Contract
+	for rows.Next() {
+		var e Contract
+		if err := rows.Scan(&e.ID, &e.EmployeeID, &e.ProjectID, &e.ContractType, &e.Salary,
+			&e.StartDate, &e.EndDate, &e.CreatedAt); err != nil {
+			return nil, err
+		}
+		contracts = append(contracts, e)
+	}
+	return contracts, nil
+}
 func (r *Repository) UpdateContract(ctx context.Context, c *Contract) error {
 	query := `UPDATE contracts SET contract_type = $1, salary = $2, start_date = $3, end_date = $4, status = $5 WHERE id = $6`
 	_, err := r.db.ExecContext(ctx, query, c.ContractType, c.Salary, c.StartDate, c.EndDate, c.Status, c.ID)

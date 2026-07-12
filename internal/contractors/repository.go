@@ -71,6 +71,27 @@ func (r *Repository) RegisterPayment(ctx context.Context, p *ContractorPayment) 
 	return tx.Commit()
 }
 
+func (r *Repository) GetContractPayment(ctx context.Context) ([]ContractorPayment, error) {
+	query := `SELECT id, contract_id, user_id, amount, payment_date, reference_number, notes, created_at
+	          FROM contractor_payments`
+
+	rows, err := r.db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contractorPayment []ContractorPayment
+	for rows.Next() {
+		var cc ContractorPayment
+		if err := rows.Scan(&cc.ID, &cc.ContractID, &cc.UserID, &cc.Amount, &cc.PaymentDate, &cc.ReferenceNumber, &cc.Notes, &cc.CreatedAt); err != nil {
+			return nil, err
+		}
+		contractorPayment = append(contractorPayment, cc)
+	}
+	return contractorPayment, nil
+}
+
 func (r *Repository) GetContractsByProject(ctx context.Context, projectID string) ([]ContractorContract, error) {
 	query := `SELECT id, company_id, contractor_id, project_id, title, total_amount, balance, start_date, COALESCE(end_date::text, ''), status, created_at, updated_at 
 	          FROM contractor_contracts WHERE project_id = $1`
@@ -90,6 +111,28 @@ func (r *Repository) GetContractsByProject(ctx context.Context, projectID string
 		list = append(list, cc)
 	}
 	return list, nil
+}
+
+func (r *Repository) GetContracts(ctx context.Context, companyID string) ([]Contractor, error) {
+	query := `SELECT id, company_id, name, nit, representative, phone, email, is_active, created_at, updated_at 
+	          FROM contractors WHERE company_id = $1`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var contractor []Contractor
+	for rows.Next() {
+		var cc Contractor
+		if err := rows.Scan(&cc.ID, &cc.CompanyID, &cc.Name, &cc.NIT, &cc.Representative, &cc.Phone, &cc.Email,
+			&cc.IsActive, &cc.CreatedAt, &cc.UpdatedAt); err != nil {
+			return nil, err
+		}
+		contractor = append(contractor, cc)
+	}
+	return contractor, nil
 }
 
 func (r *Repository) UpdateContractor(ctx context.Context, c *Contractor) error {

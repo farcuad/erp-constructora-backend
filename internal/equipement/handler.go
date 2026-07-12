@@ -80,6 +80,24 @@ func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(assign)
 }
 
+func (h *Handler) GetAssignment(w http.ResponseWriter, r *http.Request) {
+
+	equipmentID := r.PathValue("equipment_id")
+	if equipmentID == "" {
+		http.Error(w, "Falta equipment_id", http.StatusBadRequest)
+		return
+	}
+
+	list, err := h.service.GetEquipementassignments(r.Context(), equipmentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
 func (h *Handler) Maintenance(w http.ResponseWriter, r *http.Request) {
 	var m MaintenanceRecord
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
@@ -95,6 +113,24 @@ func (h *Handler) Maintenance(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(m)
+}
+
+func (h *Handler) GetMaintenanceById(w http.ResponseWriter, r *http.Request) {
+
+	equipmentID := r.PathValue("equipment_id")
+	if equipmentID == "" {
+		http.Error(w, "Falta equipment_id en los parametros", http.StatusBadRequest)
+		return
+	}
+
+	list, err := h.service.GetMaintenance(r.Context(), equipmentID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
 }
 
 func (h *Handler) UpdateEquipment(w http.ResponseWriter, r *http.Request) {

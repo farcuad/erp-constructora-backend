@@ -97,6 +97,23 @@ func (h *Handler) CreateContract(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(c)
 }
 
+func (h *Handler) GetAllPositions(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	list, err := h.service.GetPositions(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
 func (h *Handler) UpdatePosition(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
@@ -212,6 +229,23 @@ func (h *Handler) DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *Handler) GetALlContracts(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	list, err := h.service.GetAllContract(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
 }
 
 func (h *Handler) UpdateContract(w http.ResponseWriter, r *http.Request) {

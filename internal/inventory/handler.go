@@ -172,6 +172,23 @@ func (h *Handler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "recurso eliminado"})
 }
 
+func (h *Handler) GetAllWarehouses(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No se encontró la constructora en el contexto de autenticación", http.StatusUnauthorized)
+		return
+	}
+
+	suppliers, err := h.service.GetAllWarehouse(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(suppliers)
+}
+
 func (h *Handler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {

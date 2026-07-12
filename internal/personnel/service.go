@@ -20,6 +20,10 @@ func (s *Service) CreatePosition(ctx context.Context, p *Position) error {
 	return s.repo.CreatePosition(ctx, p)
 }
 
+func (s *Service) GetPositions(ctx context.Context, companyID string) ([]Position, error) {
+	return s.repo.GetPosition(ctx, companyID)
+}
+
 func (s *Service) UpdatePosition(ctx context.Context, p *Position) error {
 	if p.Name == "" {
 		return errors.New("el nombre del cargo es requerido")
@@ -58,6 +62,10 @@ func (s *Service) AddContract(ctx context.Context, c *Contract) error {
 		return errors.New("los datos básicos del contrato y un salario mayor a cero son obligatorios")
 	}
 	return s.repo.CreateContract(ctx, c)
+}
+
+func (s *Service) GetAllContract(ctx context.Context, CompanyID string) ([]Contract, error) {
+	return s.repo.GetContract(ctx, CompanyID)
 }
 
 func (s *Service) UpdateContract(ctx context.Context, c *Contract) error {

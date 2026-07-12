@@ -41,6 +41,10 @@ func (s *Service) RegisterMaintenance(ctx context.Context, m *MaintenanceRecord)
 	return s.repo.CreateMaintenance(ctx, m)
 }
 
+func (s *Service) GetMaintenance(ctx context.Context, equipmentID string) ([]*MaintenanceRecord, error) {
+	return s.repo.GetEquipementMaintenance(ctx, equipmentID)
+}
+
 func (s *Service) UpdateEquipment(ctx context.Context, id, companyID string, req *UpdateEquipmentRequest) (*Equipment, error) {
 	e, err := s.repo.GetEquipmentByID(ctx, id, companyID)
 	if err != nil {
@@ -75,6 +79,10 @@ func (s *Service) UpdateEquipment(ctx context.Context, id, companyID string, req
 
 func (s *Service) DeleteEquipment(ctx context.Context, id, companyID string) error {
 	return s.repo.DeleteEquipment(ctx, id, companyID)
+}
+
+func (s *Service) GetEquipementassignments(ctx context.Context, equipmentID string) ([]*EquipmentAssignment, error) {
+	return s.repo.GetEquipementAssignment(ctx, equipmentID)
 }
 
 func (s *Service) UpdateEquipmentType(ctx context.Context, id, companyID string, req *UpdateEquipmentTypeRequest) (*EquipmentType, error) {

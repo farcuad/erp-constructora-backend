@@ -150,6 +150,17 @@ func (r *Repository) DeleteMaterial(ctx context.Context, id, companyID string) e
 	return err
 }
 
+func (r *Repository) GetWarehouses(ctx context.Context, companyID string) (*Warehouse, error) {
+	query := `SELECT id, company_id, project_id, name, COALESCE(location, ''), created_at 
+	          FROM warehouses WHERE company_id = $1`
+	var w Warehouse
+	err := r.db.QueryRowContext(ctx, query, companyID).Scan(&w.ID, &w.CompanyID, &w.ProjectID, &w.Name, &w.Location, &w.CreatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &w, nil
+}
+
 func (r *Repository) GetWarehouseByID(ctx context.Context, id, companyID string) (*Warehouse, error) {
 	query := `SELECT id, company_id, project_id, name, COALESCE(location, ''), created_at 
 	          FROM warehouses WHERE id = $1 AND company_id = $2`

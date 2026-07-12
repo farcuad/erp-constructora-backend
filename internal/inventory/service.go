@@ -72,6 +72,10 @@ func (s *Service) DeleteMaterial(ctx context.Context, id, companyID string) erro
 	return s.repo.DeleteMaterial(ctx, id, companyID)
 }
 
+func (s *Service) GetAllWarehouse(ctx context.Context, companyID string) (*Warehouse, error) {
+	return s.repo.GetWarehouses(ctx, companyID)
+}
+
 func (s *Service) UpdateWarehouse(ctx context.Context, id, companyID string, req *UpdateWarehouseRequest) (*Warehouse, error) {
 	w, err := s.repo.GetWarehouseByID(ctx, id, companyID)
 	if err != nil {

@@ -34,8 +34,16 @@ func (s *Service) AddPayment(ctx context.Context, p *ContractorPayment) error {
 	return s.repo.RegisterPayment(ctx, p) // Llama al repositorio transaccional
 }
 
+func (s *Service) GetAllContractPayment(ctx context.Context) ([]ContractorPayment, error) {
+	return s.repo.GetContractPayment(ctx)
+}
+
 func (s *Service) ListContractsByProject(ctx context.Context, projectID string) ([]ContractorContract, error) {
 	return s.repo.GetContractsByProject(ctx, projectID)
+}
+
+func (s *Service) GetALlContract(ctx context.Context, companyID string) ([]Contractor, error) {
+	return s.repo.GetContracts(ctx, companyID)
 }
 
 func (s *Service) UpdateContractor(ctx context.Context, c *Contractor) error {
