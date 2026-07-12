@@ -41,6 +41,10 @@ func (s *Service) GetCurrentStock(ctx context.Context, warehouseID string) ([]Ma
 	return s.repo.GetStockByWarehouse(ctx, warehouseID)
 }
 
+func (s *Service) GetMaterials(ctx context.Context, companyID string) (*Material, error) {
+	return s.repo.GetMaterials(ctx, companyID)
+}
+
 func (s *Service) UpdateMaterial(ctx context.Context, id, companyID string, req *UpdateMaterialRequest) (*Material, error) {
 	m, err := s.repo.GetMaterialByID(ctx, id, companyID)
 	if err != nil {

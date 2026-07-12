@@ -112,6 +112,17 @@ func (r *Repository) GetStockByWarehouse(ctx context.Context, warehouseID string
 	return stocks, nil
 }
 
+func (r *Repository) GetMaterials(ctx context.Context, companyID string) (*Material, error) {
+	query := `SELECT id, company_id, COALESCE(category_id::text, ''), name, code, unit, created_at, updated_at 
+	          FROM materials WHERE company_id = $1`
+	var m Material
+	err := r.db.QueryRowContext(ctx, query, companyID).Scan(&m.ID, &m.CompanyID, &m.CategoryID, &m.Name, &m.Code, &m.Unit, &m.CreatedAt, &m.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	return &m, nil
+}
+
 func (r *Repository) GetMaterialByID(ctx context.Context, id, companyID string) (*Material, error) {
 	query := `SELECT id, company_id, COALESCE(category_id::text, ''), name, COALESCE(code, ''), unit, created_at, updated_at 
 	          FROM materials WHERE id = $1 AND company_id = $2`

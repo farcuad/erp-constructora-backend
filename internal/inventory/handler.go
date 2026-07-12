@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"erp-constructora/internal/users"
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -16,7 +16,7 @@ func NewHandler(service *Service) *Handler {
 }
 
 func (h *Handler) CreateWarehouse(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -40,7 +40,7 @@ func (h *Handler) CreateWarehouse(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -63,8 +63,25 @@ func (h *Handler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(m)
 }
 
+func (h *Handler) GetAllMaterials(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No se encontró la constructora en el contexto de autenticación", http.StatusUnauthorized)
+		return
+	}
+
+	suppliers, err := h.service.GetMaterials(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(suppliers)
+}
+
 func (h *Handler) PostMovement(w http.ResponseWriter, r *http.Request) {
-	userID, ok := users.GetUserIDFromContext(r.Context())
+	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -111,7 +128,7 @@ func (h *Handler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -140,7 +157,7 @@ func (h *Handler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -162,7 +179,7 @@ func (h *Handler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -192,7 +209,7 @@ func (h *Handler) DeleteWarehouse(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	companyID, ok := users.GetCompanyIDFromContext(r.Context())
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
