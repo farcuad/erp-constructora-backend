@@ -153,7 +153,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	// --- Suppliers ---
 	mux.Handle("POST /supplier", auth(http.HandlerFunc(suppliersHandler.CreateSupplier)))
-	mux.Handle("GET /supplier/{project_id}", auth(http.HandlerFunc(suppliersHandler.GetAllSuppliers)))
+	mux.Handle("GET /supplier", auth(http.HandlerFunc(suppliersHandler.GetAllSuppliers)))
 	mux.Handle("PUT /supplier/{id}", auth(http.HandlerFunc(suppliersHandler.UpdateSupplier)))
 	mux.Handle("DELETE /supplier/{id}", auth(http.HandlerFunc(suppliersHandler.DeleteSupplier)))
 
