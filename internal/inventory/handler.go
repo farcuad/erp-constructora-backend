@@ -70,14 +70,14 @@ func (h *Handler) GetAllMaterials(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	suppliers, err := h.service.GetMaterials(r.Context(), companyID)
+	material, err := h.service.GetMaterials(r.Context(), companyID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(suppliers)
+	json.NewEncoder(w).Encode(material)
 }
 
 func (h *Handler) PostMovement(w http.ResponseWriter, r *http.Request) {

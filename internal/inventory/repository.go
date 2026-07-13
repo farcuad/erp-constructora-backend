@@ -112,15 +112,46 @@ func (r *Repository) GetStockByWarehouse(ctx context.Context, warehouseID string
 	return stocks, nil
 }
 
-func (r *Repository) GetMaterials(ctx context.Context, companyID string) (*Material, error) {
+func (r *Repository) GetMaterials(ctx context.Context, companyID string) ([]Material, error) {
 	query := `SELECT id, company_id, COALESCE(category_id::text, ''), name, code, unit, created_at, updated_at 
-	          FROM materials WHERE company_id = $1`
-	var m Material
-	err := r.db.QueryRowContext(ctx, query, companyID).Scan(&m.ID, &m.CompanyID, &m.CategoryID, &m.Name, &m.Code, &m.Unit, &m.CreatedAt, &m.UpdatedAt)
+              FROM materials WHERE company_id = $1`
+
+	// 1. Usamos QueryContext en lugar de QueryRowContext para traer múltiples filas
+	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
 		return nil, err
 	}
-	return &m, nil
+	defer rows.Close() // ¡Súper importante cerrar los rows al terminar!
+
+	// 2. Inicializamos un slice vacío (así si no hay registros, devuelve [] en vez de null)
+	materials := []Material{}
+
+	// 3. Iteramos por cada registro que devolvió la base de datos
+	for rows.Next() {
+		var m Material
+		err := rows.Scan(
+			&m.ID,
+			&m.CompanyID,
+			&m.CategoryID,
+			&m.Name,
+			&m.Code,
+			&m.Unit,
+			&m.CreatedAt,
+			&m.UpdatedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+		// Agregamos el material al slice
+		materials = append(materials, m)
+	}
+
+	// 4. Verificamos si hubo algún error durante la iteración
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return materials, nil
 }
 
 func (r *Repository) GetMaterialByID(ctx context.Context, id, companyID string) (*Material, error) {
@@ -150,15 +181,27 @@ func (r *Repository) DeleteMaterial(ctx context.Context, id, companyID string) e
 	return err
 }
 
-func (r *Repository) GetWarehouses(ctx context.Context, companyID string) (*Warehouse, error) {
+func (r *Repository) GetWarehouses(ctx context.Context, companyID string) ([]Warehouse, error) {
 	query := `SELECT id, company_id, project_id, name, COALESCE(location, ''), created_at 
 	          FROM warehouses WHERE company_id = $1`
-	var w Warehouse
-	err := r.db.QueryRowContext(ctx, query, companyID).Scan(&w.ID, &w.CompanyID, &w.ProjectID, &w.Name, &w.Location, &w.CreatedAt)
+	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
 		return nil, err
 	}
-	return &w, nil
+	defer rows.Close()
+	w := []Warehouse{}
+	for rows.Next() {
+		var warehouse Warehouse
+		err := rows.Scan(&warehouse.ID, &warehouse.CompanyID, &warehouse.ProjectID, &warehouse.Name, &warehouse.Location, &warehouse.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		w = append(w, warehouse)
+	}
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+	return w, nil
 }
 
 func (r *Repository) GetWarehouseByID(ctx context.Context, id, companyID string) (*Warehouse, error) {

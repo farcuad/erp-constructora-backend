@@ -41,7 +41,7 @@ func (s *Service) GetCurrentStock(ctx context.Context, warehouseID string) ([]Ma
 	return s.repo.GetStockByWarehouse(ctx, warehouseID)
 }
 
-func (s *Service) GetMaterials(ctx context.Context, companyID string) (*Material, error) {
+func (s *Service) GetMaterials(ctx context.Context, companyID string) ([]Material, error) {
 	return s.repo.GetMaterials(ctx, companyID)
 }
 
@@ -72,7 +72,7 @@ func (s *Service) DeleteMaterial(ctx context.Context, id, companyID string) erro
 	return s.repo.DeleteMaterial(ctx, id, companyID)
 }
 
-func (s *Service) GetAllWarehouse(ctx context.Context, companyID string) (*Warehouse, error) {
+func (s *Service) GetAllWarehouse(ctx context.Context, companyID string) ([]Warehouse, error) {
 	return s.repo.GetWarehouses(ctx, companyID)
 }
 
