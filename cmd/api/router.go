@@ -170,6 +170,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("GET /inventory/stock/{warehouse_id}", auth(http.HandlerFunc(inventoryHandler.GetStock)))
 
 	// --- Equipment ---
+	mux.Handle("POST /equipment/types", auth(http.HandlerFunc(equipementHandler.CreateEquipmentType)))
 	mux.Handle("POST /equipment", auth(http.HandlerFunc(equipementHandler.CreateEquipment)))
 	mux.Handle("GET /equipment", auth(http.HandlerFunc(equipementHandler.GetAll)))
 	mux.Handle("PUT /equipment/{id}", auth(http.HandlerFunc(equipementHandler.UpdateEquipment)))

@@ -46,3 +46,16 @@ CREATE TABLE maintenance_records (
     next_due_date DATE,                    -- Próximo mantenimiento preventivo programado
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+-- 1. Quitamos la relación vieja que permitía poner en NULL el tipo si se borraba la categoría
+ALTER TABLE equipment 
+DROP CONSTRAINT IF EXISTS equipment_type_id_fkey;
+
+-- 2. Creamos la nueva relación segura (ON DELETE RESTRICT evita que borren el tipo si hay equipos usándolo)
+ALTER TABLE equipment 
+ADD CONSTRAINT equipment_type_id_fkey 
+FOREIGN KEY (type_id) REFERENCES equipment_types(id) ON DELETE RESTRICT;
+
+-- 3. Forzamos a que la columna sea estrictamente obligatoria
+ALTER TABLE equipment 
+ALTER COLUMN type_id SET NOT NULL;

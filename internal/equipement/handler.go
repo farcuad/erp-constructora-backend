@@ -184,6 +184,30 @@ func (h *Handler) DeleteEquipment(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "recurso eliminado"})
 }
 
+func (h *Handler) CreateEquipmentType(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "Acceso no autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	var eq EquipmentType
+	if err := json.NewDecoder(r.Body).Decode(&eq); err != nil {
+		http.Error(w, "JSON corrupto o inválido", http.StatusBadRequest)
+		return
+	}
+	eq.CompanyID = companyID
+
+	if err := h.service.CreateEquipmentTypes(r.Context(), &eq); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(eq)
+}
+
 func (h *Handler) UpdateEquipmentType(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {

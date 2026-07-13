@@ -206,6 +206,15 @@ func (r *Repository) GetEquipmentTypeByID(ctx context.Context, id, companyID str
 	return &et, nil
 }
 
+func (r *Repository) CreateEquipmentType(ctx context.Context, e *EquipmentType) error {
+	query := `INSERT INTO equipment_types (company_id, name) 
+	          VALUES ($1, $2) 
+	          RETURNING id, company_id, name, created_at`
+
+	return r.db.QueryRowContext(ctx, query, e.CompanyID, e.Name).
+		Scan(&e.ID, &e.CompanyID, &e.Name, &e.CreatedAt)
+}
+
 func (r *Repository) UpdateEquipmentType(ctx context.Context, et *EquipmentType) error {
 	query := `UPDATE equipment_types SET name = $1 WHERE id = $2 AND company_id = $3`
 	_, err := r.db.ExecContext(ctx, query, et.Name, et.ID, et.CompanyID)

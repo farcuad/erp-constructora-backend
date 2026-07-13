@@ -12,7 +12,7 @@ type EquipmentType struct {
 type Equipment struct {
 	ID            string    `json:"id"`
 	CompanyID     string    `json:"company_id"`
-	TypeID        string    `json:"type_id,omitempty"`
+	TypeID        string    `json:"type_id"`
 	Name          string    `json:"name"`
 	PlateNumber   string    `json:"plate_number,omitempty"`
 	Model         string    `json:"model,omitempty"`

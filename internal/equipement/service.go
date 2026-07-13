@@ -85,6 +85,13 @@ func (s *Service) GetEquipementassignments(ctx context.Context, equipmentID stri
 	return s.repo.GetEquipementAssignment(ctx, equipmentID)
 }
 
+func (s *Service) CreateEquipmentTypes(ctx context.Context, e *EquipmentType) error {
+	if e.Name == "" {
+		return errors.New("el nombre de la maquinaria/equipo es mandatorio")
+	}
+	return s.repo.CreateEquipmentType(ctx, e)
+}
+
 func (s *Service) UpdateEquipmentType(ctx context.Context, id, companyID string, req *UpdateEquipmentTypeRequest) (*EquipmentType, error) {
 	et, err := s.repo.GetEquipmentTypeByID(ctx, id, companyID)
 	if err != nil {
