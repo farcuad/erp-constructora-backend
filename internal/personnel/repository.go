@@ -115,10 +115,10 @@ func (r *Repository) DeleteEmployee(ctx context.Context, companyID, id string) e
 	return err
 }
 
-func (r *Repository) GetContract(ctx context.Context, companyID string) ([]Contract, error) {
-	query := `SELECT id, employee_id, project_id, contract_type, salary, start_date, end_date, status
-	          FROM contracts WHERE company_id = $1`
-	rows, err := r.db.QueryContext(ctx, query, companyID)
+func (r *Repository) GetContract(ctx context.Context, projectID string) ([]Contract, error) {
+	query := `SELECT id, employee_id, project_id, contract_type, salary, start_date, COALESCE(end_date::text, ''), status, created_at
+	          FROM contracts WHERE project_id = $1`
+	rows, err := r.db.QueryContext(ctx, query, projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +128,7 @@ func (r *Repository) GetContract(ctx context.Context, companyID string) ([]Contr
 	for rows.Next() {
 		var e Contract
 		if err := rows.Scan(&e.ID, &e.EmployeeID, &e.ProjectID, &e.ContractType, &e.Salary,
-			&e.StartDate, &e.EndDate, &e.CreatedAt); err != nil {
+			&e.StartDate, &e.EndDate, &e.Status, &e.CreatedAt); err != nil {
 			return nil, err
 		}
 		contracts = append(contracts, e)

@@ -191,7 +191,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("PUT /employees/{id}", auth(http.HandlerFunc(personnelHandler.UpdateEmployee)))
 	mux.Handle("DELETE /employees/{id}", auth(http.HandlerFunc(personnelHandler.DeleteEmployee)))
 	mux.Handle("POST /contracts", auth(http.HandlerFunc(personnelHandler.CreateContract)))
-	mux.Handle("GET /contracts", auth(http.HandlerFunc(personnelHandler.GetALlContracts)))
+	mux.Handle("GET /contracts/{project_id}", auth(http.HandlerFunc(personnelHandler.GetALlContracts)))
 	mux.Handle("PUT /contracts/{id}", auth(http.HandlerFunc(personnelHandler.UpdateContract)))
 	mux.Handle("DELETE /contracts/{id}", auth(http.HandlerFunc(personnelHandler.DeleteContract)))
 

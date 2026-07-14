@@ -232,13 +232,14 @@ func (h *Handler) DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) GetALlContracts(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
-	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+
+	projectID := r.PathValue("project_id")
+	if projectID == "" {
+		http.Error(w, "Falta el project_id", http.StatusBadRequest)
 		return
 	}
 
-	list, err := h.service.GetAllContract(r.Context(), companyID)
+	list, err := h.service.GetAllContract(r.Context(), projectID)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

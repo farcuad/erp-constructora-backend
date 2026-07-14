@@ -64,8 +64,8 @@ func (s *Service) AddContract(ctx context.Context, c *Contract) error {
 	return s.repo.CreateContract(ctx, c)
 }
 
-func (s *Service) GetAllContract(ctx context.Context, CompanyID string) ([]Contract, error) {
-	return s.repo.GetContract(ctx, CompanyID)
+func (s *Service) GetAllContract(ctx context.Context, projectID string) ([]Contract, error) {
+	return s.repo.GetContract(ctx, projectID)
 }
 
 func (s *Service) UpdateContract(ctx context.Context, c *Contract) error {
