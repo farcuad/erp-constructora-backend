@@ -92,6 +92,10 @@ func (s *Service) CreateEquipmentTypes(ctx context.Context, e *EquipmentType) er
 	return s.repo.CreateEquipmentType(ctx, e)
 }
 
+func (s *Service) GetEquipmentTypes(ctx context.Context, companyId string) ([]EquipmentType, error) {
+	return s.repo.GetEquipmentType(ctx, companyId)
+}
+
 func (s *Service) UpdateEquipmentType(ctx context.Context, id, companyID string, req *UpdateEquipmentTypeRequest) (*EquipmentType, error) {
 	et, err := s.repo.GetEquipmentTypeByID(ctx, id, companyID)
 	if err != nil {

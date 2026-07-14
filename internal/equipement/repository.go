@@ -196,6 +196,33 @@ func (r *Repository) DeleteEquipment(ctx context.Context, id, companyID string) 
 	return err
 }
 
+func (r *Repository) GetEquipmentType(ctx context.Context, companyID string) ([]EquipmentType, error) {
+	query := `SELECT id, company_id, name, created_at FROM equipment_types
+          WHERE company_id = $1`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var equipmentType []EquipmentType
+	for rows.Next() {
+		var et EquipmentType
+		err := rows.Scan(&et.ID, &et.CompanyID, &et.Name, &et.CreatedAt)
+		if err != nil {
+			return nil, err
+		}
+		equipmentType = append(equipmentType, et)
+	}
+
+	if err = rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return equipmentType, nil
+}
+
 func (r *Repository) GetEquipmentTypeByID(ctx context.Context, id, companyID string) (*EquipmentType, error) {
 	query := `SELECT id, company_id, name, created_at FROM equipment_types WHERE id = $1 AND company_id = $2`
 	var et EquipmentType
