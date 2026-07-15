@@ -11,20 +11,28 @@ import (
 )
 
 func enableCORS(next http.Handler) http.Handler {
+	allowedOrigins := map[string]bool{
+		"http://localhost:5173":                             true,
+		"https://erp-constructora-frontend-6pfx.vercel.app": true,
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Permitimos el origen de tu frontend en desarrollo local
-		w.Header().Set("Access-Control-Allow-Origin", "http://localhost:5173")
-		w.Header().Set("Access-Control-Allow-Origin", "https://erp-constructora-frontend-6pfx.vercel.app")
+		origin := r.Header.Get("Origin")
+
+		// Si el origen de la petición está permitido, lo seteamos dinámicamente
+		if allowedOrigins[origin] {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS, PUT, DELETE")
 		w.Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 		w.Header().Set("Access-Control-Allow-Credentials", "true")
-		// IMPORTANTE: Manejar la petición Preflight (OPTIONS) que hace Axios/browser automáticamente
+
+		// Manejar Preflight
 		if r.Method == http.MethodOptions {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
 
-		// Si no es OPTIONS, continúa con la ruta normal (Login, etc.)
 		next.ServeHTTP(w, r)
 	})
 }
