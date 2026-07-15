@@ -83,7 +83,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := map[string]interface{}{
-		"message": "Login exitoso",
+		"message": "Inicio de sesion exitoso",
 		"token":   token,
 	}
 
