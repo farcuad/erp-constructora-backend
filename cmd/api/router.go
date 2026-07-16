@@ -217,10 +217,6 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /schedule/tasks", auth(http.HandlerFunc(sheduleHandler.CreateTask)))
 	mux.Handle("PUT /schedule/tasks/{id}", auth(http.HandlerFunc(sheduleHandler.UpdateTask)))
 	mux.Handle("DELETE /schedule/tasks/{id}", auth(http.HandlerFunc(sheduleHandler.DeleteTask)))
-	mux.Handle("POST /schedule/dependencies", auth(http.HandlerFunc(sheduleHandler.AddDependency)))
-	mux.Handle("POST /schedule/milestones", auth(http.HandlerFunc(sheduleHandler.CreateMilestone)))
-	mux.Handle("PUT /schedule/milestones/{id}", auth(http.HandlerFunc(sheduleHandler.UpdateMilestone)))
-	mux.Handle("DELETE /schedule/milestones/{id}", auth(http.HandlerFunc(sheduleHandler.DeleteMilestone)))
 	mux.Handle("GET /schedule/{project_id}", auth(http.HandlerFunc(sheduleHandler.GetSchedule)))
 
 	// --- Progress ---
