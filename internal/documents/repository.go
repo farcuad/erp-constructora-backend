@@ -160,3 +160,80 @@ func (r *Repository) DeleteDocument(ctx context.Context, companyID, id string) e
 	_, err := r.db.ExecContext(ctx, query, companyID, id)
 	return err
 }
+
+func (r *Repository) GetTypes(ctx context.Context, companyID string) ([]DocumentType, error) {
+	query := `SELECT id, company_id, name, COALESCE(description, ''), created_at FROM document_types WHERE company_id = $1 ORDER BY name ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var types []DocumentType
+	for rows.Next() {
+		var t DocumentType
+		if err := rows.Scan(&t.ID, &t.CompanyID, &t.Name, &t.Description, &t.CreatedAt); err != nil {
+			return nil, err
+		}
+		types = append(types, t)
+	}
+	return types, nil
+}
+
+func (r *Repository) GetByProject(ctx context.Context, companyID, projectID string) ([]Document, error) {
+	query := `SELECT id, company_id, project_id, document_type_id, title, COALESCE(description, ''), current_version, status, created_at, updated_at FROM documents WHERE company_id = $1 AND project_id = $2 ORDER BY created_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var docs []Document
+	for rows.Next() {
+		var d Document
+		if err := rows.Scan(&d.ID, &d.CompanyID, &d.ProjectID, &d.DocumentTypeID, &d.Title, &d.Description, &d.CurrentVersion, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			return nil, err
+		}
+		docs = append(docs, d)
+	}
+	return docs, nil
+}
+
+func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Document, error) {
+	query := `SELECT id, company_id, project_id, document_type_id, title, COALESCE(description, ''), current_version, status, created_at, updated_at FROM documents WHERE company_id = $1 AND id = $2`
+
+	var d Document
+	if err := r.db.QueryRowContext(ctx, query, companyID, id).Scan(&d.ID, &d.CompanyID, &d.ProjectID, &d.DocumentTypeID, &d.Title, &d.Description, &d.CurrentVersion, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	versions, err := r.GetVersions(ctx, companyID, d.ID)
+	if err != nil {
+		return nil, err
+	}
+	d.Versions = versions
+
+	return &d, nil
+}
+
+func (r *Repository) GetVersions(ctx context.Context, companyID, documentID string) ([]DocumentVersion, error) {
+	query := `SELECT id, company_id, document_id, version_number, file_url, COALESCE(file_size, 0), COALESCE(file_extension, ''), COALESCE(change_log, ''), user_id, created_at FROM document_versions WHERE company_id = $1 AND document_id = $2 ORDER BY version_number DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID, documentID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var versions []DocumentVersion
+	for rows.Next() {
+		var v DocumentVersion
+		if err := rows.Scan(&v.ID, &v.CompanyID, &v.DocumentID, &v.VersionNumber, &v.FileURL, &v.FileSize, &v.FileExtension, &v.ChangeLog, &v.UserID, &v.CreatedAt); err != nil {
+			return nil, err
+		}
+		versions = append(versions, v)
+	}
+	return versions, nil
+}

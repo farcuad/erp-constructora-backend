@@ -115,6 +115,75 @@ func (h *Handler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Factura eliminada"})
 }
 
+func (h *Handler) GetInvoices(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	projectID := r.PathValue("project_id")
+	if projectID == "" {
+		http.Error(w, "Falta project_id en la ruta", http.StatusBadRequest)
+		return
+	}
+
+	invoices, err := h.service.GetProjectInvoices(r.Context(), companyID, projectID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(invoices)
+}
+
+func (h *Handler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el id de la factura", http.StatusBadRequest)
+		return
+	}
+
+	inv, err := h.service.GetInvoiceByID(r.Context(), companyID, id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(inv)
+}
+
+func (h *Handler) GetPayments(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	invoiceID := r.PathValue("invoice_id")
+	if invoiceID == "" {
+		http.Error(w, "Falta el id de la factura", http.StatusBadRequest)
+		return
+	}
+
+	payments, err := h.service.GetPayments(r.Context(), companyID, invoiceID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(payments)
+}
+
 func (h *Handler) CancelInvoice(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {

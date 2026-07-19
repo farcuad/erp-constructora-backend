@@ -61,3 +61,31 @@ func (s *Service) DeleteDocument(ctx context.Context, companyID, id string) erro
 	}
 	return s.repo.DeleteDocument(ctx, companyID, id)
 }
+
+func (s *Service) GetDocumentTypes(ctx context.Context, companyID string) ([]DocumentType, error) {
+	if companyID == "" {
+		return nil, errors.New("empresa requerida")
+	}
+	return s.repo.GetTypes(ctx, companyID)
+}
+
+func (s *Service) GetProjectDocuments(ctx context.Context, companyID, projectID string) ([]Document, error) {
+	if companyID == "" || projectID == "" {
+		return nil, errors.New("empresa y proyecto son requeridos")
+	}
+	return s.repo.GetByProject(ctx, companyID, projectID)
+}
+
+func (s *Service) GetDocumentByID(ctx context.Context, companyID, id string) (*Document, error) {
+	if companyID == "" || id == "" {
+		return nil, errors.New("empresa e id de documento son requeridos")
+	}
+	return s.repo.GetByID(ctx, companyID, id)
+}
+
+func (s *Service) GetDocumentVersions(ctx context.Context, companyID, documentID string) ([]DocumentVersion, error) {
+	if companyID == "" || documentID == "" {
+		return nil, errors.New("empresa e id de documento son requeridos")
+	}
+	return s.repo.GetVersions(ctx, companyID, documentID)
+}

@@ -51,3 +51,24 @@ func (s *Service) CancelInvoice(ctx context.Context, companyID, id string) error
 	}
 	return s.repo.CancelInvoice(ctx, companyID, id)
 }
+
+func (s *Service) GetProjectInvoices(ctx context.Context, companyID, projectID string) ([]Invoice, error) {
+	if companyID == "" || projectID == "" {
+		return nil, errors.New("empresa y proyecto son requeridos")
+	}
+	return s.repo.GetByProject(ctx, companyID, projectID)
+}
+
+func (s *Service) GetInvoiceByID(ctx context.Context, companyID, id string) (*Invoice, error) {
+	if companyID == "" || id == "" {
+		return nil, errors.New("empresa e id de factura son requeridos")
+	}
+	return s.repo.GetByID(ctx, companyID, id)
+}
+
+func (s *Service) GetPayments(ctx context.Context, companyID, invoiceID string) ([]Payment, error) {
+	if companyID == "" || invoiceID == "" {
+		return nil, errors.New("empresa e id de factura son requeridos")
+	}
+	return s.repo.GetPaymentsByInvoice(ctx, companyID, invoiceID)
+}

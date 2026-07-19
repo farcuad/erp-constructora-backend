@@ -22,7 +22,9 @@ type Invoice struct {
 	RemainingAmount float64       `json:"remaining_amount"`
 	Notes           string        `json:"notes"`
 	CreatedAt       time.Time     `json:"created_at"`
+	UpdatedAt       time.Time     `json:"updated_at"`
 	Items           []InvoiceItem `json:"items,omitempty"`
+	Payments        []Payment     `json:"payments,omitempty"`
 }
 
 type InvoiceItem struct {

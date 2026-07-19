@@ -129,3 +129,75 @@ func (r *Repository) RegisterPayment(ctx context.Context, p *Payment) error {
 
 	return tx.Commit()
 }
+
+func (r *Repository) GetByProject(ctx context.Context, companyID, projectID string) ([]Invoice, error) {
+	query := `SELECT id, company_id, project_id, invoice_number, type, status, client_id, supplier_id, contractor_id, issue_date, due_date, subtotal, tax_amount, total_amount, remaining_amount, COALESCE(notes, ''), created_at, updated_at FROM invoices WHERE company_id = $1 AND project_id = $2 ORDER BY created_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var invoices []Invoice
+	for rows.Next() {
+		var inv Invoice
+		if err := rows.Scan(&inv.ID, &inv.CompanyID, &inv.ProjectID, &inv.InvoiceNumber, &inv.Type, &inv.Status, &inv.ClientID, &inv.SupplierID, &inv.ContractorID, &inv.IssueDate, &inv.DueDate, &inv.Subtotal, &inv.TaxAmount, &inv.TotalAmount, &inv.RemainingAmount, &inv.Notes, &inv.CreatedAt, &inv.UpdatedAt); err != nil {
+			return nil, err
+		}
+		invoices = append(invoices, inv)
+	}
+	return invoices, nil
+}
+
+func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Invoice, error) {
+	query := `SELECT id, company_id, project_id, invoice_number, type, status, client_id, supplier_id, contractor_id, issue_date, due_date, subtotal, tax_amount, total_amount, remaining_amount, COALESCE(notes, ''), created_at, updated_at FROM invoices WHERE company_id = $1 AND id = $2`
+
+	var inv Invoice
+	if err := r.db.QueryRowContext(ctx, query, companyID, id).Scan(&inv.ID, &inv.CompanyID, &inv.ProjectID, &inv.InvoiceNumber, &inv.Type, &inv.Status, &inv.ClientID, &inv.SupplierID, &inv.ContractorID, &inv.IssueDate, &inv.DueDate, &inv.Subtotal, &inv.TaxAmount, &inv.TotalAmount, &inv.RemainingAmount, &inv.Notes, &inv.CreatedAt, &inv.UpdatedAt); err != nil {
+		return nil, err
+	}
+
+	itemQuery := `SELECT id, company_id, invoice_id, description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = $1`
+	itemRows, err := r.db.QueryContext(ctx, itemQuery, inv.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer itemRows.Close()
+
+	for itemRows.Next() {
+		var item InvoiceItem
+		if err := itemRows.Scan(&item.ID, &item.CompanyID, &item.InvoiceID, &item.Description, &item.Quantity, &item.UnitPrice, &item.Total); err != nil {
+			return nil, err
+		}
+		inv.Items = append(inv.Items, item)
+	}
+
+	payments, err := r.GetPaymentsByInvoice(ctx, companyID, inv.ID)
+	if err != nil {
+		return nil, err
+	}
+	inv.Payments = payments
+
+	return &inv, nil
+}
+
+func (r *Repository) GetPaymentsByInvoice(ctx context.Context, companyID, invoiceID string) ([]Payment, error) {
+	query := `SELECT id, company_id, project_id, invoice_id, payment_date, amount, payment_method, COALESCE(reference, ''), COALESCE(notes, ''), created_at FROM payments WHERE company_id = $1 AND invoice_id = $2 ORDER BY payment_date DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var payments []Payment
+	for rows.Next() {
+		var p Payment
+		if err := rows.Scan(&p.ID, &p.CompanyID, &p.ProjectID, &p.InvoiceID, &p.PaymentDate, &p.Amount, &p.PaymentMethod, &p.Reference, &p.Notes, &p.CreatedAt); err != nil {
+			return nil, err
+		}
+		payments = append(payments, p)
+	}
+	return payments, nil
+}

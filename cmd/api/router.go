@@ -232,22 +232,29 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("GET /photos/{project_id}", auth(http.HandlerFunc(photosHandler.GetGallery)))
 
 	// --- Invoices / Payments ---
+	mux.Handle("GET /invoices/{id}", auth(http.HandlerFunc(paymentHandler.GetInvoiceByID)))
+	mux.Handle("GET /invoices/project/{project_id}", auth(http.HandlerFunc(paymentHandler.GetInvoices)))
 	mux.Handle("POST /invoices", auth(http.HandlerFunc(paymentHandler.CreateInvoice)))
 	mux.Handle("PUT /invoices/{id}", auth(http.HandlerFunc(paymentHandler.UpdateInvoice)))
 	mux.Handle("DELETE /invoices/{id}", auth(http.HandlerFunc(paymentHandler.DeleteInvoice)))
 	mux.Handle("PATCH /invoices/{id}/cancel", auth(http.HandlerFunc(paymentHandler.CancelInvoice)))
+	mux.Handle("GET /invoices/payments/{invoice_id}", auth(http.HandlerFunc(paymentHandler.GetPayments)))
 	mux.Handle("POST /invoices/payments", auth(http.HandlerFunc(paymentHandler.PostPayment)))
 
 	// --- Dashboard ---
 	mux.Handle("GET /dashboard/financial/{project_id}", auth(http.HandlerFunc(dashboardHandler.GetSummary)))
 
 	// --- Documents ---
+	mux.Handle("GET /documents/types", auth(http.HandlerFunc(documentsHandler.GetTypes)))
 	mux.Handle("POST /documents/types", auth(http.HandlerFunc(documentsHandler.CreateType)))
 	mux.Handle("PUT /documents/types/{id}", auth(http.HandlerFunc(documentsHandler.UpdateDocumentType)))
 	mux.Handle("DELETE /documents/types/{id}", auth(http.HandlerFunc(documentsHandler.DeleteDocumentType)))
+	mux.Handle("GET /documents/{id}", auth(http.HandlerFunc(documentsHandler.GetDocumentByID)))
+	mux.Handle("GET /documents/project/{project_id}", auth(http.HandlerFunc(documentsHandler.GetDocuments)))
 	mux.Handle("POST /documents", auth(http.HandlerFunc(documentsHandler.CreateDocument)))
 	mux.Handle("PUT /documents/{id}", auth(http.HandlerFunc(documentsHandler.UpdateDocument)))
 	mux.Handle("DELETE /documents/{id}", auth(http.HandlerFunc(documentsHandler.DeleteDocument)))
+	mux.Handle("GET /documents/versions/{document_id}", auth(http.HandlerFunc(documentsHandler.GetVersions)))
 	mux.Handle("POST /documents/versions", auth(http.HandlerFunc(documentsHandler.UpdateVersion)))
 
 	// --- Notifications ---
