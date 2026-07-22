@@ -24,6 +24,7 @@ import (
 	"erp-constructora/internal/purchase"
 	schedule "erp-constructora/internal/shedule"
 	"erp-constructora/internal/subscriptions"
+	"erp-constructora/internal/superadmin"
 	"erp-constructora/internal/suppliers"
 	"erp-constructora/internal/users"
 )
@@ -116,11 +117,17 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	subscriptionHandler := subscriptions.NewHandler(subscriptionService)
 
+	superAdminRepo := superadmin.NewRepository(db)
+	superAdminService := superadmin.NewService(superAdminRepo)
+	superAdminHandler := superadmin.NewHandler(superAdminService)
+
 	subMiddleware := middlewares.RequireActiveSubscription(subscriptionService)
 	auth := middlewares.AuthMiddleware
+	adminOnly := middlewares.RequireSuperAdmin
 
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
+	mux.HandleFunc("POST /admin/login", superAdminHandler.Login)
 
 	// --- Projects ---
 	mux.Handle("POST /projects", auth(subMiddleware(http.HandlerFunc(projectHandler.Create))))
@@ -270,8 +277,8 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	// --- Subscriptions ---
 	mux.Handle("GET /subscriptions/me", auth(http.HandlerFunc(subscriptionHandler.GetMySubscription)))
-	mux.Handle("POST /subscriptions", auth(http.HandlerFunc(subscriptionHandler.CreateSubscription)))
-	mux.Handle("PATCH /subscriptions/{id}", auth(http.HandlerFunc(subscriptionHandler.UpdateSubscription)))
+	mux.Handle("POST /subscriptions", auth(adminOnly(http.HandlerFunc(subscriptionHandler.CreateSubscription))))
+	mux.Handle("PATCH /subscriptions/{id}", auth(adminOnly(http.HandlerFunc(subscriptionHandler.UpdateSubscription))))
 
 	return mux
 }

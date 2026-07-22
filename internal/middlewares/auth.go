@@ -14,8 +14,9 @@ import (
 type contextKey string
 
 const (
-	UserIDKey    contextKey = "userID"
-	CompanyIDKey contextKey = "companyKey"
+	UserIDKey       contextKey = "userID"
+	CompanyIDKey    contextKey = "companyKey"
+	IsSuperAdminKey contextKey = "isSuperAdmin"
 )
 
 // AuthMiddleware protege las rutas verificando el token JWT
@@ -59,6 +60,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		// 4. Inyectar los datos del token en el Contexto de la petición HTTP
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, CompanyIDKey, claims.CompanyID)
+		ctx = context.WithValue(ctx, IsSuperAdminKey, claims.IsSuperAdmin)
 
 		// 5. Dejar pasar la petición al siguiente Handler con el nuevo contexto enriquecido
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -74,4 +76,19 @@ func GetCompanyIDFromContext(ctx context.Context) (string, bool) {
 func GetUserIDFromContext(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	return userID, ok
+}
+
+func IsSuperAdminFromContext(ctx context.Context) bool {
+	isSuperAdmin, ok := ctx.Value(IsSuperAdminKey).(bool)
+	return ok && isSuperAdmin
+}
+
+func RequireSuperAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !IsSuperAdminFromContext(r.Context()) {
+			http.Error(w, "Acceso denegado: solo el administrador del sistema", http.StatusForbidden)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }

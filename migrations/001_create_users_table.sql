@@ -38,3 +38,9 @@ CREATE TABLE role_permissions (
     permission_id UUID REFERENCES permissions(id) ON DELETE CASCADE,
     PRIMARY KEY (role_id, permission_id)
 );
+
+-- Limpieza: tablas no utilizadas (el control de personal se maneja desde el módulo personnel)
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS permissions;
+DROP TABLE IF EXISTS user_roles;
+DROP TABLE IF EXISTS roles;
