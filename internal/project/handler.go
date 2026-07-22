@@ -3,6 +3,7 @@ package project
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"erp-constructora/internal/middlewares"
 )
@@ -126,6 +127,10 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 
 	err := h.service.DeleteProject(r.Context(), companyID, id)
 	if err != nil {
+		if strings.Contains(err.Error(), "no se puede eliminar") {
+			http.Error(w, err.Error(), http.StatusConflict)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}

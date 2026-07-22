@@ -3,6 +3,7 @@ package project
 import (
 	"context"
 	"errors"
+	"strings"
 )
 
 type Service struct {
@@ -33,7 +34,11 @@ func (s *Service) UpdateProject(ctx context.Context, companyID string, id string
 }
 
 func (s *Service) DeleteProject(ctx context.Context, companyID string, id string) error {
-	return s.repo.Delete(ctx, companyID, id)
+	err := s.repo.Delete(ctx, companyID, id)
+	if err != nil && strings.Contains(err.Error(), "23503") {
+		return errors.New("no se puede eliminar el proyecto porque tiene datos relacionados (presupuestos, gastos, órdenes de compra, etc.)")
+	}
+	return err
 }
 
 func (s *Service) CreateProject(ctx context.Context, companyID string, dto CreateProjectDTO) (*Project, error) {
