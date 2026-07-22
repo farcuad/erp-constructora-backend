@@ -35,8 +35,11 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	userService := users.NewService(userRepo)
 	userHandler := users.NewHandler(userService)
 
+	subscriptionRepo := subscriptions.NewRepository(db)
+	subscriptionService := subscriptions.NewService(subscriptionRepo)
+
 	projectRepo := project.NewRepository(db)
-	projectService := project.NewService(projectRepo)
+	projectService := project.NewService(projectRepo, subscriptionService)
 	projectHandler := project.NewHandler(projectService)
 
 	clientRepo := clients.NewRepository(db)
@@ -111,8 +114,6 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	auditLogsService := audit.NewService(auditLogsRepository)
 	auditLogsHandler := audit.NewHandler(auditLogsService)
 
-	subscriptionRepo := subscriptions.NewRepository(db)
-	subscriptionService := subscriptions.NewService(subscriptionRepo)
 	subscriptionHandler := subscriptions.NewHandler(subscriptionService)
 
 	subMiddleware := middlewares.RequireActiveSubscription(subscriptionService)

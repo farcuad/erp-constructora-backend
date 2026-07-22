@@ -21,6 +21,7 @@ type SubscriptionInfo struct {
 type SubscriptionService interface {
 	IsSubscriptionActive(ctx context.Context, companyID string) (bool, error)
 	GetSubscriptionInfo(ctx context.Context, companyID string) (*SubscriptionInfo, error)
+	CanCreateProject(ctx context.Context, companyID string) (bool, error)
 }
 
 func RequireActiveSubscription(svc SubscriptionService) func(http.Handler) http.Handler {

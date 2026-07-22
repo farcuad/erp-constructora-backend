@@ -90,6 +90,10 @@ func (s *Service) IsSubscriptionActive(ctx context.Context, companyID string) (b
 		return false, nil
 	}
 
+	if sub.TrialEndDate != nil && sub.TrialEndDate.Before(time.Now()) {
+		return false, nil
+	}
+
 	return true, nil
 }
 

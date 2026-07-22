@@ -4,14 +4,17 @@ import (
 	"context"
 	"errors"
 	"strings"
+
+	"erp-constructora/internal/middlewares"
 )
 
 type Service struct {
-	repo *Repository
+	repo         *Repository
+	subChecker   middlewares.SubscriptionService
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, subChecker middlewares.SubscriptionService) *Service {
+	return &Service{repo: repo, subChecker: subChecker}
 }
 
 func (s *Service) UpdateProject(ctx context.Context, companyID string, id string, dto UpdateProjectDTO) (*Project, error) {
@@ -48,6 +51,17 @@ func (s *Service) CreateProject(ctx context.Context, companyID string, dto Creat
 	}
 	if dto.EndDate.Before(dto.StartDate) {
 		return nil, errors.New("la fecha de fin no puede ser anterior a la fecha de inicio")
+	}
+
+	// Regla de Negocio 2: Verificar límite de proyectos según el plan
+	if s.subChecker != nil {
+		ok, err := s.subChecker.CanCreateProject(ctx, companyID)
+		if err != nil {
+			return nil, errors.New("error al verificar el límite de proyectos: " + err.Error())
+		}
+		if !ok {
+			return nil, middlewares.ErrProjectLimitExceeded
+		}
 	}
 
 	// Mapear DTO a la entidad del dominio

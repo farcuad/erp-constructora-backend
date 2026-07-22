@@ -42,6 +42,10 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 	project, err := h.service.CreateProject(r.Context(), companyID, dto)
 	if err != nil {
+		if err == middlewares.ErrProjectLimitExceeded {
+			http.Error(w, err.Error(), http.StatusPaymentRequired)
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
