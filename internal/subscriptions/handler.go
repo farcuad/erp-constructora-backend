@@ -56,6 +56,39 @@ func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sub)
 }
 
+func (h *Handler) GetAllSubscriptions(w http.ResponseWriter, r *http.Request) {
+	subs, err := h.service.GetAllWithCompany(r.Context())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(subs)
+}
+
+func (h *Handler) GetSubscriptionByID(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	if id == "" {
+		http.Error(w, "Falta el id de la suscripción", http.StatusBadRequest)
+		return
+	}
+
+	sub, payments, err := h.service.GetByIDWithPayments(r.Context(), id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusNotFound)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"subscription": sub,
+		"payments":     payments,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
 func (h *Handler) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {

@@ -132,3 +132,21 @@ func (s *Service) CanCreateUser(ctx context.Context, companyID string) (bool, er
 
 	return current < sub.MaxUsers, nil
 }
+
+func (s *Service) GetAllWithCompany(ctx context.Context) ([]SubscriptionWithCompany, error) {
+	return s.repo.GetAllWithCompany(ctx)
+}
+
+func (s *Service) GetByIDWithPayments(ctx context.Context, id string) (*CompanySubscription, []PaymentRecord, error) {
+	sub, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	payments, err := s.repo.GetPaymentsByCompany(ctx, sub.CompanyID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return sub, payments, nil
+}
