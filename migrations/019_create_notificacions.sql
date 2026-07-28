@@ -23,6 +23,18 @@ CREATE TABLE notification_reads (
     CONSTRAINT unique_user_notification UNIQUE (notification_id, user_id)
 );
 
+-- Agregamos los campos para soportar el patrón polimórfico y metadata en notifications
+ALTER TABLE notifications 
+ADD COLUMN entity_type VARCHAR(50) NOT NULL DEFAULT 'SYSTEM',
+ADD COLUMN entity_id UUID,
+ADD COLUMN type VARCHAR(50) NOT NULL DEFAULT 'GENERAL_ALERT',
+ADD COLUMN priority VARCHAR(20) NOT NULL DEFAULT 'medium',
+ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
+
+-- Índice para acelerar la consulta de notificaciones no leídas por usuario en el Dashboard/Sidebar
+CREATE INDEX IF NOT EXISTS idx_notification_reads_user_unread 
+ON notification_reads (company_id, user_id, is_read);
+
 -- Índices eficientes para obtener las notificaciones no leídas de un usuario en tiempo real
 CREATE INDEX idx_notifications_company ON notifications(company_id);
 CREATE INDEX idx_notification_reads_user ON notification_reads(user_id, is_read);

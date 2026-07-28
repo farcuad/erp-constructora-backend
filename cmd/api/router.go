@@ -108,8 +108,11 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	documentsHandler := documents.NewHandler(documentsService)
 
 	notificationsRepository := notifications.NewRepository(db)
-	notificationsService := notifications.NewService(notificationsRepository)
-	notificationsHandler := notifications.NewHandler(notificationsService)
+	notificationsHub := notifications.NewWSHub()
+
+	// 2. Inyectamos el Hub tanto al Service (para enviar eventos) como al Handler (para la conexión WS)
+	notificationsService := notifications.NewService(notificationsRepository, notificationsHub)
+	notificationsHandler := notifications.NewHandler(notificationsService, notificationsHub)
 
 	auditLogsRepository := audit.NewRepository(db)
 	auditLogsService := audit.NewService(auditLogsRepository)
@@ -266,6 +269,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /documents/versions", auth(http.HandlerFunc(documentsHandler.UpdateVersion)))
 
 	// --- Notifications ---
+	mux.Handle("GET /notifications/ws", auth(http.HandlerFunc(notificationsHandler.GetMyNotifications)))
 	mux.Handle("POST /notifications", auth(http.HandlerFunc(notificationsHandler.CreateNotifications)))
 	mux.Handle("GET /notifications", auth(http.HandlerFunc(notificationsHandler.GetMyNotifications)))
 	mux.Handle("PATCH /notifications/{notification_id}/read", auth(http.HandlerFunc(notificationsHandler.MarkRead)))

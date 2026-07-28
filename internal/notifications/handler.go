@@ -5,14 +5,52 @@ import (
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+
+	"github.com/gorilla/websocket"
 )
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Configurar orígenes según tu dominio en producción
+	},
+}
 
 type Handler struct {
 	service *Service
+	hub     *WSHub
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, hub *WSHub) *Handler {
+	return &Handler{service: service, hub: hub}
+}
+
+// HandleWS gestiona el apretón de manos para conectar React con el backend mediante WebSockets
+func (h *Handler) HandleWS(w http.ResponseWriter, r *http.Request) {
+	companyID, okCompany := middlewares.GetCompanyIDFromContext(r.Context())
+	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
+
+	if !okCompany || !okUser {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		return
+	}
+
+	h.hub.Register(companyID, userID, conn)
+
+	// Mantener la conexión abierta escuchando desconexiones
+	go func() {
+		defer h.hub.Unregister(companyID, userID)
+		for {
+			_, _, err := conn.ReadMessage()
+			if err != nil {
+				break
+			}
+		}
+	}()
 }
 
 func (h *Handler) CreateNotifications(w http.ResponseWriter, r *http.Request) {
@@ -28,26 +66,9 @@ func (h *Handler) CreateNotifications(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.Title == "" || req.Message == "" {
-		http.Error(w, "El título y el mensaje son requeridos", http.StatusBadRequest)
-		return
-	}
-	if len(req.TargetUsers) == 0 {
-		http.Error(w, "Debe especificar al menos un usuario en target_users", http.StatusBadRequest)
-		return
-	}
-
-	notification := Notification{
-		CompanyID: companyID,
-		ProjectID: req.ProjectID,
-		Title:     req.Title,
-		Message:   req.Message,
-		LinkToUI:  req.LinkToUI,
-	}
-
-	err := h.service.DispatchNotification(r.Context(), &notification, req.TargetUsers)
+	notification, err := h.service.DispatchNotification(r.Context(), req, companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 

@@ -3,36 +3,76 @@ package notifications
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 )
 
 type Service struct {
 	repo *Repository
+	hub  *WSHub
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *Repository, hub *WSHub) *Service {
+	return &Service{repo: repo, hub: hub}
 }
 
-func (s *Service) DispatchNotification(ctx context.Context, n *Notification, targetUserIDs []string) error {
-	if n.Title == "" || n.Message == "" {
-		return errors.New("el título y el cuerpo de la notificación son obligatorios")
+func (s *Service) DispatchNotification(ctx context.Context, req CreateNotificationRequest, companyID string) (*Notification, error) {
+	if req.Title == "" || req.Message == "" {
+		return nil, errors.New("el título y el mensaje son obligatorios")
 	}
-	if len(targetUserIDs) == 0 {
-		return errors.New("debe especificar al menos un usuario destino")
+	if len(req.TargetUsers) == 0 {
+		return nil, errors.New("debe especificar al menos un usuario destino")
 	}
 
-	// Ejecutamos ambas inserciones bajo una única transacción de Base de Datos
-	return s.repo.ExecInTx(ctx, func(tx *sql.Tx) error {
-		if err := s.repo.CreateTx(ctx, tx, n); err != nil {
-			return err
-		}
+	// Asignar valores predeterminados si vienen vacíos
+	if req.EntityType == "" {
+		req.EntityType = "SYSTEM"
+	}
+	if req.Type == "" {
+		req.Type = "GENERAL_ALERT"
+	}
+	if req.Priority == "" {
+		req.Priority = PriorityMedium
+	}
 
-		if err := s.repo.AssignToUsersBulk(ctx, tx, n.CompanyID, n.ID, targetUserIDs); err != nil {
+	// Serializar la metadata map -> json.RawMessage
+	var metaBytes json.RawMessage
+	if req.Metadata != nil {
+		b, err := json.Marshal(req.Metadata)
+		if err == nil {
+			metaBytes = b
+		}
+	}
+
+	notification := &Notification{
+		CompanyID:  companyID,
+		ProjectID:  req.ProjectID,
+		EntityType: req.EntityType,
+		EntityID:   req.EntityID,
+		Type:       req.Type,
+		Priority:   req.Priority,
+		Title:      req.Title,
+		Message:    req.Message,
+		LinkToUI:   req.LinkToUI,
+		Metadata:   metaBytes,
+	}
+
+	// 1. Guardar en Base de Datos en Transacción
+	err := s.repo.ExecInTx(ctx, func(tx *sql.Tx) error {
+		if err := s.repo.CreateTx(ctx, tx, notification); err != nil {
 			return err
 		}
-		return nil
+		return s.repo.AssignToUsersBulk(ctx, tx, companyID, notification.ID, req.TargetUsers)
 	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. Transmisión vía WebSockets en tiempo real a los usuarios destino conectados
+	s.hub.SendToUsers(companyID, req.TargetUsers, *notification)
+
+	return notification, nil
 }
 
 func (s *Service) FetchMyNotifications(ctx context.Context, companyID, userID string) ([]Notification, error) {
