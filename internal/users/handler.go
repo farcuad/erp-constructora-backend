@@ -75,7 +75,7 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := h.service.Login(r.Context(), dto)
+	result, err := h.service.Login(r.Context(), dto)
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized) // 401
 		json.NewEncoder(w).Encode(map[string]string{"message": err.Error()})
@@ -84,7 +84,8 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	response := map[string]interface{}{
 		"message": "Inicio de sesion exitoso",
-		"token":   token,
+		"token":   result.Token,
+		"user":    result.User,
 	}
 
 	w.WriteHeader(http.StatusOK) // 200

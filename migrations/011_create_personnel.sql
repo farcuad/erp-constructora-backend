@@ -19,6 +19,7 @@ CREATE TABLE employees (
     phone VARCHAR(20),
     email VARCHAR(100),
     status VARCHAR(50) DEFAULT 'Active', -- 'Active', 'Inactive', 'On Leave'
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT unique_company_employee_dni UNIQUE (company_id, dni)
@@ -36,3 +37,8 @@ CREATE TABLE contracts (
     status VARCHAR(50) DEFAULT 'Active', -- 'Active', 'Terminated'
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
+
+
+
+ALTER TABLE employees 
+ADD COLUMN user_id UUID REFERENCES users(id) ON DELETE SET NULL;

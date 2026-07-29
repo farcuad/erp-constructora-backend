@@ -21,6 +21,8 @@ type User struct {
 	PasswordHash string    `json:"-"` // El '-' evita que se envíe la clave en el JSON
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
+	RoleName     string
+	EmployeeID   *string // Puede ser NULL en PostgreSQL
 }
 
 // Estructura para el JSON que enviará React/Flutter al hacer POST /register
@@ -35,4 +37,17 @@ type RegisterDTO struct {
 type LoginDto struct {
 	Email    string `json:"email"`
 	Password string `json:"password"`
+}
+
+type UserResponse struct {
+	ID         string  `json:"id"`
+	Name       string  `json:"name"`
+	Email      string  `json:"email"`
+	Role       string  `json:"role"`
+	EmployeeID *string `json:"employee_id,omitempty"`
+}
+
+type LoginResponse struct {
+	Token string       `json:"token"`
+	User  UserResponse `json:"user"`
 }

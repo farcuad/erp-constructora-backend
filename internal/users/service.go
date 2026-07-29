@@ -3,6 +3,7 @@ package users
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"time"
 
@@ -61,23 +62,37 @@ func (s *Service) RegisterCompanyAndAdmin(ctx context.Context, dto RegisterDTO) 
 	return company, adminUser, nil
 }
 
-func (s *Service) Login(ctx context.Context, dto LoginDto) (string, error) {
-	user, err := s.repo.GetEmailUser(ctx, dto.Email)
+func (s *Service) Login(ctx context.Context, dto LoginDto) (*LoginResponse, error) {
+	user, err := s.repo.GetEmailUserWithDetails(ctx, dto.Email)
 	if err != nil {
-		return "", errors.New("Credenciales Incorrectas")
+		log.Println("[DEBUG LOGIN ERROR]:", err)
+		return nil, errors.New("Credenciales Incorrectas")
+	}
+
+	if !user.IsActive {
+		return nil, errors.New("El usuario se encuentra inactivo")
 	}
 
 	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(dto.Password)) != nil {
-		return "", errors.New("Credenciales Incorrectas")
+		log.Println("[DEBUG BCRYPT ERROR]:", err) // Muestra si la clave ingresada no coincide con el hash
+		return nil, errors.New("Credenciales Incorrectas")
 	}
 
 	tokenString, err := s.generateJwt(user)
-
 	if err != nil {
-		return "", errors.New("Error al generar el token de acceso")
+		return nil, errors.New("Error al generar el token de acceso")
 	}
 
-	return tokenString, nil
+	return &LoginResponse{
+		Token: tokenString,
+		User: UserResponse{
+			ID:         user.ID,
+			Name:       user.Name,
+			Email:      user.Email,
+			Role:       user.RoleName,
+			EmployeeID: user.EmployeeID,
+		},
+	}, nil
 }
 
 func (s *Service) generateJwt(user *User) (string, error) {

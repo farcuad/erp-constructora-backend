@@ -84,6 +84,50 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 	// 7. Si todo salió bien, guardamos los cambios permanentemente en la DB
 	return tx.Commit()
 }
+func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) (*User, error) {
+	query := `
+        SELECT DISTINCT ON (u.id)
+            u.id, 
+            u.company_id, 
+            u.name, 
+            u.email, 
+            u.password_hash, 
+            u.is_active,
+            COALESCE(r.name, 'Trabajador') AS role_name,
+            e.id AS employee_id
+        FROM users u
+        LEFT JOIN user_roles ur ON u.id = ur.user_id
+        LEFT JOIN roles r ON ur.role_id = r.id
+        LEFT JOIN employees e ON u.id = e.user_id
+        WHERE u.email = $1
+        ORDER BY u.id, u.created_at DESC;
+    `
+	var u User
+	var employeeID sql.NullString // Permite recibir UUIDs o valores NULL sin que falle Go
+
+	err := r.db.QueryRowContext(ctx, query, email).Scan(
+		&u.ID,
+		&u.CompanyID,
+		&u.Name,
+		&u.Email,
+		&u.PasswordHash,
+		&u.IsActive,
+		&u.RoleName,
+		&employeeID, // Escaneo seguro para e.id
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	// Convertir el NullString al puntero *string que espera tu struct User
+	if employeeID.Valid {
+		u.EmployeeID = &employeeID.String
+	} else {
+		u.EmployeeID = nil
+	}
+
+	return &u, nil
+}
 
 // Verificar si el email ya existe globalmente
 func (r *Repository) EmailExists(ctx context.Context, email string) (bool, error) {
