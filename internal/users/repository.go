@@ -3,6 +3,12 @@ package users
 import (
 	"context"
 	"database/sql"
+
+	"github.com/lib/pq"
+
+	"errors"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Repository struct {
@@ -86,24 +92,29 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 }
 func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) (*User, error) {
 	query := `
-        SELECT DISTINCT ON (u.id)
+        SELECT 
             u.id, 
             u.company_id, 
             u.name, 
             u.email, 
             u.password_hash, 
             u.is_active,
-            COALESCE(r.name, 'Trabajador') AS role_name,
-            e.id AS employee_id
+            COALESCE(r.name, 'Sin Rol') AS role_name,
+            COALESCE(
+                ARRAY_REMOVE(ARRAY_AGG(DISTINCT p.name), NULL), 
+                '{}'
+            ) AS permissions
         FROM users u
         LEFT JOIN user_roles ur ON u.id = ur.user_id
         LEFT JOIN roles r ON ur.role_id = r.id
-        LEFT JOIN employees e ON u.id = e.user_id
+        LEFT JOIN role_permissions rp ON r.id = rp.role_id
+        LEFT JOIN permissions p ON rp.permission_id = p.id
         WHERE u.email = $1
-        ORDER BY u.id, u.created_at DESC;
+        GROUP BY u.id, u.company_id, u.name, u.email, u.password_hash, u.is_active, r.name;
     `
+
 	var u User
-	var employeeID sql.NullString // Permite recibir UUIDs o valores NULL sin que falle Go
+	var permissions []string
 
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&u.ID,
@@ -113,19 +124,13 @@ func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) 
 		&u.PasswordHash,
 		&u.IsActive,
 		&u.RoleName,
-		&employeeID, // Escaneo seguro para e.id
+		pq.Array(&permissions),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	// Convertir el NullString al puntero *string que espera tu struct User
-	if employeeID.Valid {
-		u.EmployeeID = &employeeID.String
-	} else {
-		u.EmployeeID = nil
-	}
-
+	u.Permissions = permissions
 	return &u, nil
 }
 
@@ -145,4 +150,180 @@ func (r *Repository) GetEmailUser(ctx context.Context, email string) (*User, err
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (r *Repository) GetRolesByCompanyID(ctx context.Context, companyID string) ([]Role, error) {
+	query := `
+		SELECT id, company_id, name, COALESCE(description, '')
+		FROM roles
+		WHERE company_id = $1
+		ORDER BY name ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var roles []Role
+	for rows.Next() {
+		var role Role
+		if err := rows.Scan(&role.ID, &role.CompanyID, &role.Name, &role.Description); err != nil {
+			return nil, err
+		}
+		roles = append(roles, role)
+	}
+
+	return roles, nil
+}
+
+// Listar todos los usuarios de la empresa EXCLUYENDO el rol 'Administrador'
+func (r *Repository) GetUsersExcludingAdmin(ctx context.Context, companyID string) ([]UserResponse, error) {
+	query := `
+		SELECT 
+			u.id, 
+			u.name, 
+			u.email, 
+			COALESCE(r.name, 'Sin Rol') AS role_name
+		FROM users u
+		INNER JOIN user_roles ur ON u.id = ur.user_id
+		INNER JOIN roles r ON ur.role_id = r.id
+		WHERE u.company_id = $1 AND r.name != 'Administrador'
+		ORDER BY u.created_at DESC`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []UserResponse
+	for rows.Next() {
+		var u UserResponse
+		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+
+	return users, nil
+}
+
+// Crear un nuevo Usuario asignándole su Rol en una transacción
+func (r *Repository) CreateUserTransaction(ctx context.Context, companyID string, dto CreateUserDTO, hashedPassword string) (*UserResponse, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+
+	// 1. INSERT en 'users'
+	queryUser := `
+		INSERT INTO users (company_id, name, email, password_hash, is_active)
+		VALUES ($1, $2, $3, $4, true)
+		RETURNING id`
+
+	var userID string
+	err = tx.QueryRowContext(ctx, queryUser, companyID, dto.Name, dto.Email, hashedPassword).Scan(&userID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. INSERT en 'user_roles'
+	queryUserRole := `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)`
+	_, err = tx.ExecContext(ctx, queryUserRole, userID, dto.RoleID)
+	if err != nil {
+		return nil, err
+	}
+
+	// 3. Obtener el nombre del rol asignado para la respuesta
+	var roleName string
+	err = tx.QueryRowContext(ctx, `SELECT name FROM roles WHERE id = $1`, dto.RoleID).Scan(&roleName)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &UserResponse{
+		ID:    userID,
+		Name:  dto.Name,
+		Email: dto.Email,
+		Role:  roleName,
+	}, nil
+}
+func (r *Repository) UpdateUserTransaction(ctx context.Context, companyID string, dto UpdateUserDTO) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	var result sql.Result
+
+	// 1. UPDATE en 'users'
+	if dto.Password != nil && *dto.Password != "" {
+		hashed, err := bcrypt.GenerateFromPassword([]byte(*dto.Password), bcrypt.DefaultCost)
+		if err != nil {
+			return err
+		}
+		query := `
+            UPDATE users 
+            SET name = $1, email = $2, password_hash = $3, is_active = $4, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $5 AND company_id = $6`
+		result, err = tx.ExecContext(ctx, query, dto.Name, dto.Email, string(hashed), dto.IsActive, dto.ID, companyID)
+	} else {
+		query := `
+            UPDATE users 
+            SET name = $1, email = $2, is_active = $3, updated_at = CURRENT_TIMESTAMP 
+            WHERE id = $4 AND company_id = $5`
+		result, err = tx.ExecContext(ctx, query, dto.Name, dto.Email, dto.IsActive, dto.ID, companyID)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	// Validar si el usuario existía y pertenecía a la empresa
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("el usuario no existe o no pertenece a esta empresa")
+	}
+
+	// 2. Reasignar Rol en 'user_roles'
+	_, err = tx.ExecContext(ctx, `DELETE FROM user_roles WHERE user_id = $1`, dto.ID)
+	if err != nil {
+		return err
+	}
+
+	_, err = tx.ExecContext(ctx, `INSERT INTO user_roles (user_id, role_id) VALUES ($1, $2)`, dto.ID, dto.RoleID)
+	if err != nil {
+		return err
+	}
+
+	return tx.Commit()
+}
+
+// Eliminar un usuario de la empresa
+func (r *Repository) DeleteUser(ctx context.Context, companyID, userID string) error {
+	query := `DELETE FROM users WHERE id = $1 AND company_id = $2`
+	result, err := r.db.ExecContext(ctx, query, userID, companyID)
+	if err != nil {
+		return err
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if rowsAffected == 0 {
+		return errors.New("el usuario no existe o no pertenece a esta empresa")
+	}
+
+	return nil
 }

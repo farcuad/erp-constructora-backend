@@ -86,11 +86,11 @@ func (s *Service) Login(ctx context.Context, dto LoginDto) (*LoginResponse, erro
 	return &LoginResponse{
 		Token: tokenString,
 		User: UserResponse{
-			ID:         user.ID,
-			Name:       user.Name,
-			Email:      user.Email,
-			Role:       user.RoleName,
-			EmployeeID: user.EmployeeID,
+			ID:          user.ID,
+			Name:        user.Name,
+			Email:       user.Email,
+			Role:        user.RoleName,
+			Permissions: user.Permissions,
 		},
 	}, nil
 }
@@ -104,8 +104,9 @@ func (s *Service) generateJwt(user *User) (string, error) {
 
 	// Crear los Claims (Carga útil del token)
 	claims := middlewares.JWTClaims{
-		UserID:    user.ID,
-		CompanyID: user.CompanyID,
+		UserID:      user.ID,
+		CompanyID:   user.CompanyID,
+		Permissions: user.Permissions,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Expira en 24 horas
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -118,4 +119,47 @@ func (s *Service) generateJwt(user *User) (string, error) {
 
 	// Firmar el token con nuestra clave secreta
 	return token.SignedString([]byte(secretKey))
+}
+
+func (s *Service) GetRoles(ctx context.Context, companyID string) ([]Role, error) {
+	return s.repo.GetRolesByCompanyID(ctx, companyID)
+}
+
+func (s *Service) GetUsers(ctx context.Context, companyID string) ([]UserResponse, error) {
+	return s.repo.GetUsersExcludingAdmin(ctx, companyID)
+}
+
+func (s *Service) CreateUser(ctx context.Context, companyID string, dto CreateUserDTO) (*UserResponse, error) {
+	if dto.Name == "" || dto.Email == "" || dto.Password == "" || dto.RoleID == "" {
+		return nil, errors.New("todos los campos son obligatorios")
+	}
+
+	exists, err := s.repo.EmailExists(ctx, dto.Email)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, errors.New("el correo electrónico ya se encuentra registrado")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(dto.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.repo.CreateUserTransaction(ctx, companyID, dto, string(hashedPassword))
+}
+
+func (s *Service) UpdateUser(ctx context.Context, companyID string, dto UpdateUserDTO) error {
+	if dto.ID == "" || dto.Name == "" || dto.Email == "" || dto.RoleID == "" {
+		return errors.New("ID, nombre, correo y rol son obligatorios")
+	}
+	return s.repo.UpdateUserTransaction(ctx, companyID, dto)
+}
+
+func (s *Service) DeleteUser(ctx context.Context, companyID, userID string) error {
+	if userID == "" {
+		return errors.New("el ID del usuario es obligatorio")
+	}
+	return s.repo.DeleteUser(ctx, companyID, userID)
 }

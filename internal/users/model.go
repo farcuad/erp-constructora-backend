@@ -22,7 +22,7 @@ type User struct {
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	RoleName     string
-	EmployeeID   *string // Puede ser NULL en PostgreSQL
+	Permissions  []string `json:"permissions"`
 }
 
 // Estructura para el JSON que enviará React/Flutter al hacer POST /register
@@ -40,14 +40,37 @@ type LoginDto struct {
 }
 
 type UserResponse struct {
-	ID         string  `json:"id"`
-	Name       string  `json:"name"`
-	Email      string  `json:"email"`
-	Role       string  `json:"role"`
-	EmployeeID *string `json:"employee_id,omitempty"`
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Email       string   `json:"email"`
+	Role        string   `json:"role"`
+	Permissions []string `json:"permissions"`
 }
 
 type LoginResponse struct {
 	Token string       `json:"token"`
 	User  UserResponse `json:"user"`
+}
+
+type Role struct {
+	ID          string `json:"id"`
+	CompanyID   string `json:"company_id"`
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+type CreateUserDTO struct {
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Password string `json:"password"`
+	RoleID   string `json:"role_id"`
+}
+
+type UpdateUserDTO struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Email    string  `json:"email"`
+	RoleID   string  `json:"role_id"`
+	IsActive bool    `json:"is_active"`
+	Password *string `json:"password,omitempty"` // Opcional por si se desea cambiar la clave
 }

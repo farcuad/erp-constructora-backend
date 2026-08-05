@@ -3,6 +3,8 @@ package users
 import (
 	"encoding/json"
 	"net/http"
+
+	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -90,4 +92,130 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK) // 200
 	json.NewEncoder(w).Encode(response)
+}
+
+func (h *Handler) GetRoles(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	roles, err := h.service.GetRoles(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(roles)
+}
+
+// GET /users
+func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	usersList, err := h.service.GetUsers(r.Context(), companyID)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(usersList)
+}
+
+// POST /users
+func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	var dto CreateUserDTO
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		return
+	}
+
+	user, err := h.service.CreateUser(r.Context(), companyID, dto)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(user)
+}
+
+// PUT /users
+func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	// Extraer el ID de la URL (ejemplo usando r.PathValue si usas Go 1.22+ o el enrutador que utilices)
+	userID := r.PathValue("id")
+	if userID == "" {
+		// Ejemplo con chi o gorilla/mux si fuera el caso: userID = chi.URLParam(r, "id")
+		http.Error(w, "ID de usuario no proporcionado en la URL", http.StatusBadRequest)
+		return
+	}
+
+	var dto UpdateUserDTO
+	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
+		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		return
+	}
+
+	// Garantizar que el ID procesado sea el enviado en la URL
+	dto.ID = userID
+
+	if err := h.service.UpdateUser(r.Context(), companyID, dto); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Usuario actualizado exitosamente"})
+}
+
+func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		return
+	}
+
+	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	// Extraer el ID de la URL
+	userID := r.PathValue("id")
+	if userID == "" {
+		http.Error(w, "ID de usuario no proporcionado en la URL", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.DeleteUser(r.Context(), companyID, userID); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Usuario eliminado exitosamente"})
 }
