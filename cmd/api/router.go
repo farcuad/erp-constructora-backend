@@ -136,7 +136,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("GET /users", auth(subMiddleware(http.HandlerFunc(userHandler.GetUsers))))
 	mux.Handle("POST /users", auth(subMiddleware(http.HandlerFunc(userHandler.CreateUser))))
 	mux.Handle("PUT /users/{id}", auth(subMiddleware(http.HandlerFunc(userHandler.UpdateUser))))
-	mux.Handle("DELETE /users/{id}", auth(subMiddleware(http.HandlerFunc(userHandler.UpdateUser))))
+	mux.Handle("DELETE /users/{id}", auth(subMiddleware(http.HandlerFunc(userHandler.DeleteUser))))
 	// --- Projects ---
 	mux.Handle("POST /projects", auth(subMiddleware(http.HandlerFunc(projectHandler.Create))))
 	mux.Handle("GET /projects", auth(http.HandlerFunc(projectHandler.GetAll)))
