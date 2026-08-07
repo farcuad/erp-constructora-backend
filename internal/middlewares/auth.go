@@ -22,21 +22,24 @@ const (
 // AuthMiddleware protege las rutas verificando el token JWT
 func AuthMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var tokenString string
 		// 1. Obtener el encabezado Authorization
 		authHeader := r.Header.Get("Authorization")
-		if authHeader == "" {
+		if authHeader != "" {
+			parts := strings.Split(authHeader, " ")
+			if len(parts) == 2 && parts[0] == "Bearer" {
+				tokenString = parts[1]
+			}
+		}
+
+		if tokenString == "" {
+			tokenString = r.URL.Query().Get("token")
+		}
+
+		if tokenString == "" {
 			http.Error(w, "Se requiere token de autenticación", http.StatusUnauthorized)
 			return
 		}
-
-		// 2. Separar el string para quitar el prefijo "Bearer "
-		parts := strings.Split(authHeader, " ")
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			http.Error(w, "Formato de token inválido (debe ser Bearer <token>)", http.StatusUnauthorized)
-			return
-		}
-
-		tokenString := parts[1]
 
 		// 3. Parsear y validar el token JWT
 		claims := &JWTClaims{}

@@ -274,7 +274,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /documents/versions", auth(http.HandlerFunc(documentsHandler.UpdateVersion)))
 
 	// --- Notifications ---
-	mux.Handle("GET /notifications/ws", auth(http.HandlerFunc(notificationsHandler.GetMyNotifications)))
+	mux.Handle("GET /notifications/ws", auth(http.HandlerFunc(notificationsHandler.HandleWS)))
 	mux.Handle("POST /notifications", auth(http.HandlerFunc(notificationsHandler.CreateNotifications)))
 	mux.Handle("GET /notifications", auth(http.HandlerFunc(notificationsHandler.GetMyNotifications)))
 	mux.Handle("PATCH /notifications/{notification_id}/read", auth(http.HandlerFunc(notificationsHandler.MarkRead)))
