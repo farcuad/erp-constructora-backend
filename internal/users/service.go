@@ -51,10 +51,37 @@ func (s *Service) RegisterCompanyAndAdmin(ctx context.Context, dto RegisterDTO) 
 	}
 
 	// Lista de roles iniciales requeridos para el flujo de la constructora según el diseño original
-	defaultRoles := []string{"Administrador", "Gerente", "Ingeniero", "Supervisor", "Compras", "Contabilidad", "Almacén"} //
+	rolesWithPermissions := map[string][]string{
+		"Administrador": {"*"}, // Comodín: acceso a todas las acciones
+		"Gerente": {
+			"projects:read", "projects:create", "projects:update",
+			"budgets:read", "budgets:approve",
+			"purchases:read", "purchases:approve",
+			"inventory:read", "users:read",
+		},
+		"Ingeniero": {
+			"projects:read", "projects:create", "projects:update",
+			"budgets:read", "purchases:create", "purchases:read",
+			"inventory:read",
+		},
+		"Compras": {
+			"purchases:read", "purchases:create", "purchases:approve",
+			"inventory:read", "projects:read",
+		},
+		"Contabilidad": {
+			"budgets:read", "purchases:read", "projects:read",
+		},
+		"Almacén": {
+			"inventory:read", "inventory:manage",
+			"purchases:read", "projects:read",
+		},
+		"Supervisor": {
+			"projects:read", "inventory:read", "budgets:read",
+		},
+	}
 
 	// Enviar al repositorio para ejecutar la transacción
-	err = s.repo.ExecRegistryTransaction(ctx, company, adminUser, defaultRoles)
+	err = s.repo.ExecRegistryTransaction(ctx, company, adminUser, rolesWithPermissions)
 	if err != nil {
 		return nil, nil, err
 	}

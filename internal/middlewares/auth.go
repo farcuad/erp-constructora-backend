@@ -64,6 +64,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, CompanyIDKey, claims.CompanyID)
 		ctx = context.WithValue(ctx, IsSuperAdminKey, claims.IsSuperAdmin)
+		ctx = context.WithValue(ctx, PermissionsKey, claims.Permissions)
 
 		// 5. Dejar pasar la petición al siguiente Handler con el nuevo contexto enriquecido
 		next.ServeHTTP(w, r.WithContext(ctx))

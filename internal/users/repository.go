@@ -20,7 +20,7 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 // ExecRegistryTransaction ejecuta los múltiples INSERTs de forma atómica
-func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company, admin *User, defaultRoles []string) error {
+func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company, admin *User, rolesWithPermissions map[string][]string) error {
 	// 1. Iniciar la transacción SQL
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -45,9 +45,12 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 
 	// 3. INSERT de Roles por defecto de la constructora (Administrador, Ingeniero, etc.)
 	queryRole := `INSERT INTO roles (company_id, name) VALUES ($1, $2) RETURNING id`
+	queryAssignPerm := `
+        INSERT INTO role_permissions (role_id, permission_id)
+        SELECT $1, id FROM permissions WHERE name = $2`
 	var adminRoleID string
 
-	for _, roleName := range defaultRoles {
+	for roleName, permList := range rolesWithPermissions {
 		var roleID string
 		err := tx.QueryRowContext(ctx, queryRole, comp.ID, roleName).Scan(&roleID)
 		if err != nil {
@@ -56,6 +59,19 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 		// Guardamos el ID del rol Administrador para asignárselo al usuario luego
 		if roleName == "Administrador" {
 			adminRoleID = roleID
+		}
+		// Asignar los permisos del rol en 'role_permissions'
+		for _, permName := range permList {
+			// Si es el Administrador con "*", no se insertan en la tabla intermedia ya que el middleware
+			// lo evalúa como comodín global. Si deseas guardar todas las filas explícitamente, puedes quitar el 'if'.
+			if permName == "*" {
+				continue
+			}
+
+			_, err = tx.ExecContext(ctx, queryAssignPerm, roleID, permName)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -90,6 +106,7 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 	// 7. Si todo salió bien, guardamos los cambios permanentemente en la DB
 	return tx.Commit()
 }
+
 func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) (*User, error) {
 	query := `
         SELECT 
@@ -101,7 +118,7 @@ func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) 
             u.is_active,
             COALESCE(r.name, 'Sin Rol') AS role_name,
             COALESCE(
-                ARRAY_REMOVE(ARRAY_AGG(DISTINCT p.name), NULL), 
+                ARRAY_REMOVE(ARRAY_AGG(DISTINCT CASE WHEN r.name = 'Administrador' THEN '*' ELSE p.name END), NULL), 
                 '{}'
             ) AS permissions
         FROM users u
@@ -156,7 +173,7 @@ func (r *Repository) GetRolesByCompanyID(ctx context.Context, companyID string) 
 	query := `
 		SELECT id, company_id, name, COALESCE(description, '')
 		FROM roles
-		WHERE company_id = $1
+		WHERE company_id = $1 AND name != 'Administrador'
 		ORDER BY name ASC`
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)

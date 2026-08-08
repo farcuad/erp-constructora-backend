@@ -29,7 +29,15 @@ import (
 	"erp-constructora/internal/users"
 )
 
+func chain(h http.Handler, middlewares ...func(http.Handler) http.Handler) http.Handler {
+	for i := len(middlewares) - 1; i >= 0; i-- {
+		h = middlewares[i](h)
+	}
+	return h
+}
+
 func SetupRoutes(db *sql.DB) http.Handler {
+
 	mux := http.NewServeMux()
 
 	userRepo := users.NewRepository(db)
@@ -128,168 +136,182 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	auth := middlewares.AuthMiddleware
 	adminOnly := middlewares.RequireSuperAdmin
 
+	// protected: valida token + suscripción activa + permiso del JWT
+	protected := func(perm string, h http.HandlerFunc) http.Handler {
+		return chain(http.HandlerFunc(h), auth, subMiddleware, middlewares.RequirePermission(perm))
+	}
+
+	// protectedBasic: valida solo token + permiso (sin suscripción)
+	protectedBasic := func(perm string, h http.HandlerFunc) http.Handler {
+		return chain(http.HandlerFunc(h), auth, middlewares.RequirePermission(perm))
+	}
+
+	// --- Public Routes ---
+
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
 	mux.HandleFunc("POST /admin/login", superAdminHandler.Login)
 
-	mux.Handle("GET /roles", auth(subMiddleware(http.HandlerFunc(userHandler.GetRoles))))
-	mux.Handle("GET /users", auth(subMiddleware(http.HandlerFunc(userHandler.GetUsers))))
-	mux.Handle("POST /users", auth(subMiddleware(http.HandlerFunc(userHandler.CreateUser))))
-	mux.Handle("PUT /users/{id}", auth(subMiddleware(http.HandlerFunc(userHandler.UpdateUser))))
-	mux.Handle("DELETE /users/{id}", auth(subMiddleware(http.HandlerFunc(userHandler.DeleteUser))))
+	// --- Users & Roles ---
+	mux.Handle("GET /roles", protected("users:read", userHandler.GetRoles))
+	mux.Handle("GET /users", protected("users:read", userHandler.GetUsers))
+	mux.Handle("POST /users", protected("users:create", userHandler.CreateUser))
+	mux.Handle("PUT /users/{id}", protected("users:update", userHandler.UpdateUser))
+	mux.Handle("DELETE /users/{id}", protected("users:delete", userHandler.DeleteUser))
+
 	// --- Projects ---
-	mux.Handle("POST /projects", auth(subMiddleware(http.HandlerFunc(projectHandler.Create))))
-	mux.Handle("GET /projects", auth(http.HandlerFunc(projectHandler.GetAll)))
-	mux.Handle("PUT /projects/{id}", auth(http.HandlerFunc(projectHandler.Update)))
-	mux.Handle("DELETE /projects/{id}", auth(http.HandlerFunc(projectHandler.Delete)))
+	mux.Handle("POST /projects", protected("projects:create", projectHandler.Create))
+	mux.Handle("GET /projects", protected("projects:read", projectHandler.GetAll))
+	mux.Handle("PUT /projects/{id}", protected("projects:update", projectHandler.Update))
+	mux.Handle("DELETE /projects/{id}", protected("projects:delete", projectHandler.Delete))
 
 	// --- Clients ---
-	mux.Handle("POST /clients", auth(http.HandlerFunc(clientHandler.Create)))
-	mux.Handle("GET /clients", auth(http.HandlerFunc(clientHandler.GetAll)))
-	mux.Handle("PUT /clients/{id}", auth(http.HandlerFunc(clientHandler.Update)))
-	mux.Handle("DELETE /clients/{id}", auth(http.HandlerFunc(clientHandler.Delete)))
+	mux.Handle("POST /clients", protected("clients:create", clientHandler.Create))
+	mux.Handle("GET /clients", protected("clients:read", clientHandler.GetAll))
+	mux.Handle("PUT /clients/{id}", protected("clients:update", clientHandler.Update))
+	mux.Handle("DELETE /clients/{id}", protected("clients:delete", clientHandler.Delete))
 
 	// --- Budgets ---
-	mux.Handle("POST /budgets", auth(http.HandlerFunc(budgetHandler.Create)))
-	mux.Handle("GET /budgets/{project_id}", auth(http.HandlerFunc(budgetHandler.GetBudgetsByProjectID)))
-	mux.Handle("PUT /budgets/{id}", auth(http.HandlerFunc(budgetHandler.Update)))
-	mux.Handle("DELETE /budgets/{id}", auth(http.HandlerFunc(budgetHandler.Delete)))
+	mux.Handle("POST /budgets", protected("budgets:create", budgetHandler.Create))
+	mux.Handle("GET /budgets/{project_id}", protected("budgets:read", budgetHandler.GetBudgetsByProjectID))
+	mux.Handle("PUT /budgets/{id}", protected("budgets:update", budgetHandler.Update))
+	mux.Handle("DELETE /budgets/{id}", protected("budgets:delete", budgetHandler.Delete))
 
 	// --- Expenses ---
-	mux.Handle("POST /expenses", auth(http.HandlerFunc(expenseHandler.Create)))
-	mux.Handle("GET /expenses/{project_id}", auth(http.HandlerFunc(expenseHandler.GetByProject)))
-	mux.Handle("PUT /expenses/{id}", auth(http.HandlerFunc(expenseHandler.Update)))
-	mux.Handle("DELETE /expenses/{id}", auth(http.HandlerFunc(expenseHandler.Delete)))
+	mux.Handle("POST /expenses", protected("expenses:create", expenseHandler.Create))
+	mux.Handle("GET /expenses/{project_id}", protected("expenses:read", expenseHandler.GetByProject))
+	mux.Handle("PUT /expenses/{id}", protected("expenses:update", expenseHandler.Update))
+	mux.Handle("DELETE /expenses/{id}", protected("expenses:delete", expenseHandler.Delete))
 
 	// --- Purchase Orders ---
-	mux.Handle("POST /purcharse", auth(http.HandlerFunc(purcharseHandler.CreatePurchaseOrder)))
-	mux.Handle("GET /purcharse/{project_id}", auth(http.HandlerFunc(purcharseHandler.GetOrdersByProject)))
-	mux.Handle("PUT /purcharse/{id}", auth(http.HandlerFunc(purcharseHandler.UpdatePurchaseOrder)))
-	mux.Handle("DELETE /purcharse/{id}", auth(http.HandlerFunc(purcharseHandler.DeletePurchaseOrder)))
+	mux.Handle("POST /purcharse", protected("purchases:create", purcharseHandler.CreatePurchaseOrder))
+	mux.Handle("GET /purcharse/{project_id}", protected("purchases:read", purcharseHandler.GetOrdersByProject))
+	mux.Handle("PUT /purcharse/{id}", protected("purchases:update", purcharseHandler.UpdatePurchaseOrder))
+	mux.Handle("DELETE /purcharse/{id}", protected("purchases:delete", purcharseHandler.DeletePurchaseOrder))
 
 	// --- Suppliers ---
-	mux.Handle("POST /supplier", auth(http.HandlerFunc(suppliersHandler.CreateSupplier)))
-	mux.Handle("GET /supplier", auth(http.HandlerFunc(suppliersHandler.GetAllSuppliers)))
-	mux.Handle("PUT /supplier/{id}", auth(http.HandlerFunc(suppliersHandler.UpdateSupplier)))
-	mux.Handle("DELETE /supplier/{id}", auth(http.HandlerFunc(suppliersHandler.DeleteSupplier)))
+	mux.Handle("POST /supplier", protected("suppliers:create", suppliersHandler.CreateSupplier))
+	mux.Handle("GET /supplier", protected("suppliers:read", suppliersHandler.GetAllSuppliers))
+	mux.Handle("PUT /supplier/{id}", protected("suppliers:update", suppliersHandler.UpdateSupplier))
+	mux.Handle("DELETE /supplier/{id}", protected("suppliers:delete", suppliersHandler.DeleteSupplier))
 
 	// --- Inventory ---
-	mux.Handle("POST /materials", auth(http.HandlerFunc(inventoryHandler.CreateMaterial)))
-	mux.Handle("GET /materials", auth(http.HandlerFunc(inventoryHandler.GetAllMaterials)))
-	mux.Handle("PUT /materials/{id}", auth(http.HandlerFunc(inventoryHandler.UpdateMaterial)))
-	mux.Handle("DELETE /materials/{id}", auth(http.HandlerFunc(inventoryHandler.DeleteMaterial)))
-	mux.Handle("POST /warehouses", auth(http.HandlerFunc(inventoryHandler.CreateWarehouse)))
-	mux.Handle("GET /warehouses", auth(http.HandlerFunc(inventoryHandler.GetAllWarehouses)))
-	mux.Handle("PUT /warehouses/{id}", auth(http.HandlerFunc(inventoryHandler.UpdateWarehouse)))
-	mux.Handle("DELETE /warehouses/{id}", auth(http.HandlerFunc(inventoryHandler.DeleteWarehouse)))
-	mux.Handle("POST /inventory/movements", auth(http.HandlerFunc(inventoryHandler.PostMovement)))
-	mux.Handle("GET /inventory/stock/{warehouse_id}", auth(http.HandlerFunc(inventoryHandler.GetStock)))
+	mux.Handle("POST /materials", protected("inventory:manage", inventoryHandler.CreateMaterial))
+	mux.Handle("GET /materials", protected("inventory:read", inventoryHandler.GetAllMaterials))
+	mux.Handle("PUT /materials/{id}", protected("inventory:manage", inventoryHandler.UpdateMaterial))
+	mux.Handle("DELETE /materials/{id}", protected("inventory:manage", inventoryHandler.DeleteMaterial))
+	mux.Handle("POST /warehouses", protected("inventory:manage", inventoryHandler.CreateWarehouse))
+	mux.Handle("GET /warehouses", protected("inventory:read", inventoryHandler.GetAllWarehouses))
+	mux.Handle("PUT /warehouses/{id}", protected("inventory:manage", inventoryHandler.UpdateWarehouse))
+	mux.Handle("DELETE /warehouses/{id}", protected("inventory:manage", inventoryHandler.DeleteWarehouse))
+	mux.Handle("POST /inventory/movements", protected("inventory:manage", inventoryHandler.PostMovement))
+	mux.Handle("GET /inventory/stock/{warehouse_id}", protected("inventory:read", inventoryHandler.GetStock))
 
 	// --- Equipment ---
-	mux.Handle("POST /equipment/types", auth(http.HandlerFunc(equipementHandler.CreateEquipmentType)))
-	mux.Handle("GET /equipment/types", auth(http.HandlerFunc(equipementHandler.GetAllEquipmentTypes)))
-	mux.Handle("POST /equipment", auth(http.HandlerFunc(equipementHandler.CreateEquipment)))
-	mux.Handle("GET /equipment", auth(http.HandlerFunc(equipementHandler.GetAll)))
-	mux.Handle("PUT /equipment/{id}", auth(http.HandlerFunc(equipementHandler.UpdateEquipment)))
-	mux.Handle("DELETE /equipment/{id}", auth(http.HandlerFunc(equipementHandler.DeleteEquipment)))
-	mux.Handle("POST /equipment/assignments", auth(http.HandlerFunc(equipementHandler.Assign)))
-	mux.Handle("GET /equipment/assignments/{equipment_id}", auth(http.HandlerFunc(equipementHandler.GetAssignment)))
-	mux.Handle("POST /equipment/maintenances", auth(http.HandlerFunc(equipementHandler.Maintenance)))
-	mux.Handle("GET /equipment/maintenances/{equipment_id}", auth(http.HandlerFunc(equipementHandler.GetMaintenanceById)))
+	mux.Handle("POST /equipment/types", protected("equipment:manage", equipementHandler.CreateEquipmentType))
+	mux.Handle("GET /equipment/types", protected("equipment:read", equipementHandler.GetAllEquipmentTypes))
+	mux.Handle("POST /equipment", protected("equipment:manage", equipementHandler.CreateEquipment))
+	mux.Handle("GET /equipment", protected("equipment:read", equipementHandler.GetAll))
+	mux.Handle("PUT /equipment/{id}", protected("equipment:manage", equipementHandler.UpdateEquipment))
+	mux.Handle("DELETE /equipment/{id}", protected("equipment:manage", equipementHandler.DeleteEquipment))
+	mux.Handle("POST /equipment/assignments", protected("equipment:assign", equipementHandler.Assign))
+	mux.Handle("GET /equipment/assignments/{equipment_id}", protected("equipment:read", equipementHandler.GetAssignment))
+	mux.Handle("POST /equipment/maintenances", protected("equipment:manage", equipementHandler.Maintenance))
+	mux.Handle("GET /equipment/maintenances/{equipment_id}", protected("equipment:read", equipementHandler.GetMaintenanceById))
 
 	// --- Personnel ---
-	mux.Handle("POST /positions", auth(http.HandlerFunc(personnelHandler.CreatePosition)))
-	mux.Handle("GET /positions", auth(http.HandlerFunc(personnelHandler.GetAllPositions)))
-	mux.Handle("PUT /positions/{id}", auth(http.HandlerFunc(personnelHandler.UpdatePosition)))
-	mux.Handle("DELETE /positions/{id}", auth(http.HandlerFunc(personnelHandler.DeletePosition)))
-	mux.Handle("POST /employees", auth(http.HandlerFunc(personnelHandler.CreateEmployee)))
-	mux.Handle("GET /employees", auth(http.HandlerFunc(personnelHandler.GetEmployees)))
-	mux.Handle("PUT /employees/{id}", auth(http.HandlerFunc(personnelHandler.UpdateEmployee)))
-	mux.Handle("DELETE /employees/{id}", auth(http.HandlerFunc(personnelHandler.DeleteEmployee)))
-	mux.Handle("POST /contracts", auth(http.HandlerFunc(personnelHandler.CreateContract)))
-	mux.Handle("GET /contracts/{project_id}", auth(http.HandlerFunc(personnelHandler.GetALlContracts)))
-	mux.Handle("PUT /contracts/{id}", auth(http.HandlerFunc(personnelHandler.UpdateContract)))
-	mux.Handle("DELETE /contracts/{id}", auth(http.HandlerFunc(personnelHandler.DeleteContract)))
+	mux.Handle("POST /positions", protected("personnel:manage", personnelHandler.CreatePosition))
+	mux.Handle("GET /positions", protected("personnel:read", personnelHandler.GetAllPositions))
+	mux.Handle("PUT /positions/{id}", protected("personnel:manage", personnelHandler.UpdatePosition))
+	mux.Handle("DELETE /positions/{id}", protected("personnel:manage", personnelHandler.DeletePosition))
+	mux.Handle("POST /employees", protected("personnel:manage", personnelHandler.CreateEmployee))
+	mux.Handle("GET /employees", protected("personnel:read", personnelHandler.GetEmployees))
+	mux.Handle("PUT /employees/{id}", protected("personnel:manage", personnelHandler.UpdateEmployee))
+	mux.Handle("DELETE /employees/{id}", protected("personnel:manage", personnelHandler.DeleteEmployee))
+	mux.Handle("POST /contracts", protected("personnel:manage", personnelHandler.CreateContract))
+	mux.Handle("GET /contracts/{project_id}", protected("personnel:read", personnelHandler.GetALlContracts))
+	mux.Handle("PUT /contracts/{id}", protected("personnel:manage", personnelHandler.UpdateContract))
+	mux.Handle("DELETE /contracts/{id}", protected("personnel:manage", personnelHandler.DeleteContract))
 
 	// --- Attendance ---
-	mux.Handle("POST /attendance", auth(http.HandlerFunc(attendanceHandler.SaveAttendance)))
-	mux.Handle("GET /attendance/{project_id}", auth(http.HandlerFunc(attendanceHandler.GetAttendance)))
-	mux.Handle("PUT /attendance/logs/{id}", auth(http.HandlerFunc(attendanceHandler.UpdateAttendanceLog)))
-	mux.Handle("DELETE /attendance/{id}", auth(http.HandlerFunc(attendanceHandler.DeleteAttendance)))
+	mux.Handle("POST /attendance", protected("attendance:mark", attendanceHandler.SaveAttendance))
+	mux.Handle("GET /attendance/{project_id}", protected("attendance:read", attendanceHandler.GetAttendance))
+	mux.Handle("PUT /attendance/logs/{id}", protected("attendance:mark", attendanceHandler.UpdateAttendanceLog))
+	mux.Handle("DELETE /attendance/{id}", protected("attendance:mark", attendanceHandler.DeleteAttendance))
 
 	// --- Contractors ---
-	mux.Handle("POST /contractors", auth(http.HandlerFunc(contractorsHandler.CreateContractor)))
-	mux.Handle("GET /contractors", auth(http.HandlerFunc(contractorsHandler.GetALlContracts)))
-	mux.Handle("PUT /contractors/{id}", auth(http.HandlerFunc(contractorsHandler.UpdateContractor)))
-	mux.Handle("DELETE /contractors/{id}", auth(http.HandlerFunc(contractorsHandler.DeleteContractor)))
-	mux.Handle("POST /contractors/contracts", auth(http.HandlerFunc(contractorsHandler.CreateContract)))
-	mux.Handle("GET /contractors/contracts/{project_id}", auth(http.HandlerFunc(contractorsHandler.GetContracts)))
-	mux.Handle("PUT /contractors/contracts/{id}", auth(http.HandlerFunc(contractorsHandler.UpdateContractorContract)))
-	mux.Handle("DELETE /contractors/contracts/{id}", auth(http.HandlerFunc(contractorsHandler.DeleteContractorContract)))
-	mux.Handle("POST /contractors/payments", auth(http.HandlerFunc(contractorsHandler.PostPayment)))
-	mux.Handle("GET /contractors/payments", auth(http.HandlerFunc(contractorsHandler.GetAllContractPayments)))
+	mux.Handle("POST /contractors", protected("contractors:manage", contractorsHandler.CreateContractor))
+	mux.Handle("GET /contractors", protected("contractors:read", contractorsHandler.GetALlContracts))
+	mux.Handle("PUT /contractors/{id}", protected("contractors:manage", contractorsHandler.UpdateContractor))
+	mux.Handle("DELETE /contractors/{id}", protected("contractors:manage", contractorsHandler.DeleteContractor))
+	mux.Handle("POST /contractors/contracts", protected("contractors:manage", contractorsHandler.CreateContract))
+	mux.Handle("GET /contractors/contracts/{project_id}", protected("contractors:read", contractorsHandler.GetContracts))
+	mux.Handle("PUT /contractors/contracts/{id}", protected("contractors:manage", contractorsHandler.UpdateContractorContract))
+	mux.Handle("DELETE /contractors/contracts/{id}", protected("contractors:manage", contractorsHandler.DeleteContractorContract))
+	mux.Handle("POST /contractors/payments", protected("contractors:pay", contractorsHandler.PostPayment))
+	mux.Handle("GET /contractors/payments", protected("contractors:read", contractorsHandler.GetAllContractPayments))
 
 	// --- Schedule ---
-	mux.Handle("POST /schedule/tasks", auth(http.HandlerFunc(sheduleHandler.CreateTask)))
-	mux.Handle("PUT /schedule/tasks/{id}", auth(http.HandlerFunc(sheduleHandler.UpdateTask)))
-	mux.Handle("DELETE /schedule/tasks/{id}", auth(http.HandlerFunc(sheduleHandler.DeleteTask)))
-	mux.Handle("GET /schedule/{project_id}", auth(http.HandlerFunc(sheduleHandler.GetSchedule)))
+	mux.Handle("POST /schedule/tasks", protected("schedule:update", sheduleHandler.CreateTask))
+	mux.Handle("PUT /schedule/tasks/{id}", protected("schedule:update", sheduleHandler.UpdateTask))
+	mux.Handle("DELETE /schedule/tasks/{id}", protected("schedule:update", sheduleHandler.DeleteTask))
+	mux.Handle("GET /schedule/{project_id}", protected("schedule:read", sheduleHandler.GetSchedule))
 
 	// --- Progress ---
-	mux.Handle("POST /progress/daily", auth(http.HandlerFunc(progressHandler.CreateDailyReport)))
-	mux.Handle("PUT /progress/daily/{id}", auth(http.HandlerFunc(progressHandler.UpdateDailyReport)))
-	mux.Handle("DELETE /progress/daily/{id}", auth(http.HandlerFunc(progressHandler.DeleteDailyReport)))
-	mux.Handle("GET /progress/{project_id}", auth(http.HandlerFunc(progressHandler.GetDailyReport)))
+	mux.Handle("POST /progress/daily", protected("progress:create", progressHandler.CreateDailyReport))
+	mux.Handle("PUT /progress/daily/{id}", protected("progress:update", progressHandler.UpdateDailyReport))
+	mux.Handle("DELETE /progress/daily/{id}", protected("progress:delete", progressHandler.DeleteDailyReport))
+	mux.Handle("GET /progress/{project_id}", protected("progress:read", progressHandler.GetDailyReport))
 
 	// --- Photos ---
-	mux.Handle("POST /photos", auth(http.HandlerFunc(photosHandler.UploadPhotoMetadata)))
-	mux.Handle("PUT /photos/{id}", auth(http.HandlerFunc(photosHandler.UpdatePhoto)))
-	mux.Handle("DELETE /photos/{id}", auth(http.HandlerFunc(photosHandler.DeletePhoto)))
-	mux.Handle("GET /photos/{project_id}", auth(http.HandlerFunc(photosHandler.GetGallery)))
+	mux.Handle("POST /photos", protected("photos:upload", photosHandler.UploadPhotoMetadata))
+	mux.Handle("PUT /photos/{id}", protected("photos:upload", photosHandler.UpdatePhoto))
+	mux.Handle("DELETE /photos/{id}", protected("photos:delete", photosHandler.DeletePhoto))
+	mux.Handle("GET /photos/{project_id}", protected("photos:read", photosHandler.GetGallery))
 
 	// --- Invoices / Payments ---
-	mux.Handle("GET /invoices/{id}", auth(http.HandlerFunc(paymentHandler.GetInvoiceByID)))
-	mux.Handle("GET /invoices/project/{project_id}", auth(http.HandlerFunc(paymentHandler.GetInvoices)))
-	mux.Handle("POST /invoices", auth(http.HandlerFunc(paymentHandler.CreateInvoice)))
-	mux.Handle("PUT /invoices/{id}", auth(http.HandlerFunc(paymentHandler.UpdateInvoice)))
-	mux.Handle("DELETE /invoices/{id}", auth(http.HandlerFunc(paymentHandler.DeleteInvoice)))
-	mux.Handle("PATCH /invoices/{id}/cancel", auth(http.HandlerFunc(paymentHandler.CancelInvoice)))
-	mux.Handle("GET /invoices/payments/{invoice_id}", auth(http.HandlerFunc(paymentHandler.GetPayments)))
-	mux.Handle("POST /invoices/payments", auth(http.HandlerFunc(paymentHandler.PostPayment)))
+	mux.Handle("GET /invoices/{id}", protected("invoices:read", paymentHandler.GetInvoiceByID))
+	mux.Handle("GET /invoices/project/{project_id}", protected("invoices:read", paymentHandler.GetInvoices))
+	mux.Handle("POST /invoices", protected("invoices:create", paymentHandler.CreateInvoice))
+	mux.Handle("PUT /invoices/{id}", protected("invoices:update", paymentHandler.UpdateInvoice))
+	mux.Handle("DELETE /invoices/{id}", protected("invoices:delete", paymentHandler.DeleteInvoice))
+	mux.Handle("PATCH /invoices/{id}/cancel", protected("invoices:cancel", paymentHandler.CancelInvoice))
+	mux.Handle("GET /invoices/payments/{invoice_id}", protected("invoices:read", paymentHandler.GetPayments))
+	mux.Handle("POST /invoices/payments", protected("invoices:pay", paymentHandler.PostPayment))
 
 	// --- Dashboard ---
-	mux.Handle("GET /dashboard/financial/{project_id}", auth(http.HandlerFunc(dashboardHandler.GetSummary)))
+	mux.Handle("GET /dashboard/financial/{project_id}", protected("dashboard:read", dashboardHandler.GetSummary))
 
 	// --- Documents ---
-	mux.Handle("GET /documents/types", auth(http.HandlerFunc(documentsHandler.GetTypes)))
-	mux.Handle("POST /documents/types", auth(http.HandlerFunc(documentsHandler.CreateType)))
-	mux.Handle("PUT /documents/types/{id}", auth(http.HandlerFunc(documentsHandler.UpdateDocumentType)))
-	mux.Handle("DELETE /documents/types/{id}", auth(http.HandlerFunc(documentsHandler.DeleteDocumentType)))
-	mux.Handle("GET /documents/{id}", auth(http.HandlerFunc(documentsHandler.GetDocumentByID)))
-	mux.Handle("GET /documents/project/{project_id}", auth(http.HandlerFunc(documentsHandler.GetDocuments)))
-	mux.Handle("POST /documents", auth(http.HandlerFunc(documentsHandler.CreateDocument)))
-	mux.Handle("PUT /documents/{id}", auth(http.HandlerFunc(documentsHandler.UpdateDocument)))
-	mux.Handle("DELETE /documents/{id}", auth(http.HandlerFunc(documentsHandler.DeleteDocument)))
-	mux.Handle("GET /documents/versions/{document_id}", auth(http.HandlerFunc(documentsHandler.GetVersions)))
-	mux.Handle("POST /documents/versions", auth(http.HandlerFunc(documentsHandler.UpdateVersion)))
+	mux.Handle("GET /documents/types", protected("documents:read", documentsHandler.GetTypes))
+	mux.Handle("POST /documents/types", protected("documents:create", documentsHandler.CreateType))
+	mux.Handle("PUT /documents/types/{id}", protected("documents:update", documentsHandler.UpdateDocumentType))
+	mux.Handle("DELETE /documents/types/{id}", protected("documents:delete", documentsHandler.DeleteDocumentType))
+	mux.Handle("GET /documents/{id}", protected("documents:read", documentsHandler.GetDocumentByID))
+	mux.Handle("GET /documents/project/{project_id}", protected("documents:read", documentsHandler.GetDocuments))
+	mux.Handle("POST /documents", protected("documents:create", documentsHandler.CreateDocument))
+	mux.Handle("PUT /documents/{id}", protected("documents:update", documentsHandler.UpdateDocument))
+	mux.Handle("DELETE /documents/{id}", protected("documents:delete", documentsHandler.DeleteDocument))
+	mux.Handle("GET /documents/versions/{document_id}", protected("documents:read", documentsHandler.GetVersions))
+	mux.Handle("POST /documents/versions", protected("documents:update", documentsHandler.UpdateVersion))
 
 	// --- Notifications ---
-	mux.Handle("GET /notifications/ws", auth(http.HandlerFunc(notificationsHandler.HandleWS)))
-	mux.Handle("POST /notifications", auth(http.HandlerFunc(notificationsHandler.CreateNotifications)))
-	mux.Handle("GET /notifications", auth(http.HandlerFunc(notificationsHandler.GetMyNotifications)))
-	mux.Handle("PATCH /notifications/{notification_id}/read", auth(http.HandlerFunc(notificationsHandler.MarkRead)))
-	mux.Handle("DELETE /notifications/{notification_id}", auth(http.HandlerFunc(notificationsHandler.DeleteNotification)))
+	mux.Handle("GET /notifications/ws", protectedBasic("notifications:read", notificationsHandler.HandleWS))
+	mux.Handle("POST /notifications", protectedBasic("notifications:manage", notificationsHandler.CreateNotifications))
+	mux.Handle("GET /notifications", protectedBasic("notifications:read", notificationsHandler.GetMyNotifications))
+	mux.Handle("PATCH /notifications/{notification_id}/read", protectedBasic("notifications:read", notificationsHandler.MarkRead))
+	mux.Handle("DELETE /notifications/{notification_id}", protectedBasic("notifications:manage", notificationsHandler.DeleteNotification))
 
 	// --- Audit Logs ---
-	mux.Handle("POST /audits-logs", auth(http.HandlerFunc(auditLogsHandler.CreateLog)))
-	mux.Handle("GET /audits-logs", auth(http.HandlerFunc(auditLogsHandler.GetCompanyLogs)))
+	mux.Handle("POST /audits-logs", protectedBasic("audits:read", auditLogsHandler.CreateLog))
+	mux.Handle("GET /audits-logs", protectedBasic("audits:read", auditLogsHandler.GetCompanyLogs))
 
 	// --- Subscriptions ---
-	mux.Handle("GET /subscriptions/me", auth(http.HandlerFunc(subscriptionHandler.GetMySubscription)))
-	mux.Handle("GET /subscriptions", auth(adminOnly(http.HandlerFunc(subscriptionHandler.GetAllSubscriptions))))
-	mux.Handle("GET /subscriptions/{id}", auth(adminOnly(http.HandlerFunc(subscriptionHandler.GetSubscriptionByID))))
-	mux.Handle("POST /subscriptions", auth(adminOnly(http.HandlerFunc(subscriptionHandler.CreateSubscription))))
-	mux.Handle("PATCH /subscriptions/{id}", auth(adminOnly(http.HandlerFunc(subscriptionHandler.UpdateSubscription))))
+	mux.Handle("GET /subscriptions/me", chain(http.HandlerFunc(subscriptionHandler.GetMySubscription), auth))
+	mux.Handle("GET /subscriptions", chain(http.HandlerFunc(subscriptionHandler.GetAllSubscriptions), adminOnly, auth))
+	mux.Handle("GET /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.GetSubscriptionByID), adminOnly, auth))
+	mux.Handle("POST /subscriptions", chain(http.HandlerFunc(subscriptionHandler.CreateSubscription), adminOnly, auth))
+	mux.Handle("PATCH /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.UpdateSubscription), adminOnly, auth))
 
 	return mux
 }
