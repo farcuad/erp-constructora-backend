@@ -30,6 +30,15 @@ func (h *Handler) UploadPhotoMetadata(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if photo.ProjectID == "" {
+		http.Error(w, "project_id es requerido", http.StatusBadRequest)
+		return
+	}
+	if photo.PhotoURL == "" {
+		http.Error(w, "photo_url es requerido", http.StatusBadRequest)
+		return
+	}
+
 	photo.CompanyID = companyID
 	photo.UserID = userID
 
