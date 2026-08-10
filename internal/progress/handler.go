@@ -1,7 +1,9 @@
 package progress
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
@@ -69,14 +71,13 @@ func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 
 	report, err := h.service.GetDailyReport(r.Context(), companyID, projectID, date)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]string{"message": "No se encontró reporte para este proyecto en la fecha especificada"})
+			return
+		}
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	if report == nil {
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]string{"message": "No se encontró reporte para este proyecto en la fecha especificada"})
 		return
 	}
 
