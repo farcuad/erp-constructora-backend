@@ -17,7 +17,11 @@ const (
 	UserIDKey       contextKey = "userID"
 	CompanyIDKey    contextKey = "companyKey"
 	IsSuperAdminKey contextKey = "isSuperAdmin"
+	RoleKey         contextKey = "role"
 )
+
+// Rol con acceso total al sistema (siempre autorizado por RequireRole)
+const AdminRole = "Administrador"
 
 // AuthMiddleware protege las rutas verificando el token JWT
 func AuthMiddleware(next http.Handler) http.Handler {
@@ -64,7 +68,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), UserIDKey, claims.UserID)
 		ctx = context.WithValue(ctx, CompanyIDKey, claims.CompanyID)
 		ctx = context.WithValue(ctx, IsSuperAdminKey, claims.IsSuperAdmin)
-		ctx = context.WithValue(ctx, PermissionsKey, claims.Permissions)
+		ctx = context.WithValue(ctx, RoleKey, claims.Role)
 
 		// 5. Dejar pasar la petición al siguiente Handler con el nuevo contexto enriquecido
 		next.ServeHTTP(w, r.WithContext(ctx))
@@ -80,6 +84,12 @@ func GetCompanyIDFromContext(ctx context.Context) (string, bool) {
 func GetUserIDFromContext(ctx context.Context) (string, bool) {
 	userID, ok := ctx.Value(UserIDKey).(string)
 	return userID, ok
+}
+
+// GetUserRoleFromContext extrae el rol del usuario desde el JWT inyectado en el contexto
+func GetUserRoleFromContext(ctx context.Context) (string, bool) {
+	role, ok := ctx.Value(RoleKey).(string)
+	return role, ok
 }
 
 func IsSuperAdminFromContext(ctx context.Context) bool {

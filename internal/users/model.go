@@ -22,7 +22,6 @@ type User struct {
 	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	RoleName     string
-	Permissions  []string `json:"permissions"`
 }
 
 // Estructura para el JSON que enviará React/Flutter al hacer POST /register
@@ -40,11 +39,10 @@ type LoginDto struct {
 }
 
 type UserResponse struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Email       string   `json:"email"`
-	Role        string   `json:"role"`
-	Permissions []string `json:"permissions"`
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	Email string `json:"email"`
+	Role  string `json:"role"`
 }
 
 type LoginResponse struct {

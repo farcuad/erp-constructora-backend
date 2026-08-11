@@ -86,3 +86,12 @@ INSERT INTO permissions (name, description) VALUES
 
     ('audits:read', 'Ver auditoría')    
 ON CONFLICT (name) DO NOTHING;
+
+-- ============================================================================
+-- MIGRACIÓN A ROLES: se desactiva el sistema de permisos, ahora las rutas se
+-- protegen por el rol del usuario (Administrador, Gerente, Ingeniero, etc.).
+-- Se limpia la tabla intermedia y se eliminan las tablas de permisos.
+-- ============================================================================
+DELETE FROM role_permissions;
+DROP TABLE IF EXISTS role_permissions;
+DROP TABLE IF EXISTS permissions;

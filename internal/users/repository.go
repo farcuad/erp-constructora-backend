@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/lib/pq"
-
 	"errors"
 
 	"golang.org/x/crypto/bcrypt"
@@ -20,7 +18,7 @@ func NewRepository(db *sql.DB) *Repository {
 }
 
 // ExecRegistryTransaction ejecuta los múltiples INSERTs de forma atómica
-func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company, admin *User, rolesWithPermissions map[string][]string) error {
+func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company, admin *User, defaultRoles []string) error {
 	// 1. Iniciar la transacción SQL
 	tx, err := r.db.BeginTx(ctx, nil)
 	if err != nil {
@@ -45,12 +43,9 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 
 	// 3. INSERT de Roles por defecto de la constructora (Administrador, Ingeniero, etc.)
 	queryRole := `INSERT INTO roles (company_id, name) VALUES ($1, $2) RETURNING id`
-	queryAssignPerm := `
-        INSERT INTO role_permissions (role_id, permission_id)
-        SELECT $1, id FROM permissions WHERE name = $2`
 	var adminRoleID string
 
-	for roleName, permList := range rolesWithPermissions {
+	for _, roleName := range defaultRoles {
 		var roleID string
 		err := tx.QueryRowContext(ctx, queryRole, comp.ID, roleName).Scan(&roleID)
 		if err != nil {
@@ -59,19 +54,6 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 		// Guardamos el ID del rol Administrador para asignárselo al usuario luego
 		if roleName == "Administrador" {
 			adminRoleID = roleID
-		}
-		// Asignar los permisos del rol en 'role_permissions'
-		for _, permName := range permList {
-			// Si es el Administrador con "*", no se insertan en la tabla intermedia ya que el middleware
-			// lo evalúa como comodín global. Si deseas guardar todas las filas explícitamente, puedes quitar el 'if'.
-			if permName == "*" {
-				continue
-			}
-
-			_, err = tx.ExecContext(ctx, queryAssignPerm, roleID, permName)
-			if err != nil {
-				return err
-			}
 		}
 	}
 
@@ -116,22 +98,15 @@ func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) 
             u.email, 
             u.password_hash, 
             u.is_active,
-            COALESCE(r.name, 'Sin Rol') AS role_name,
-            COALESCE(
-                ARRAY_REMOVE(ARRAY_AGG(DISTINCT CASE WHEN r.name = 'Administrador' THEN '*' ELSE p.name END), NULL), 
-                '{}'
-            ) AS permissions
+            COALESCE(r.name, 'Sin Rol') AS role_name
         FROM users u
         LEFT JOIN user_roles ur ON u.id = ur.user_id
         LEFT JOIN roles r ON ur.role_id = r.id
-        LEFT JOIN role_permissions rp ON r.id = rp.role_id
-        LEFT JOIN permissions p ON rp.permission_id = p.id
         WHERE u.email = $1
-        GROUP BY u.id, u.company_id, u.name, u.email, u.password_hash, u.is_active, r.name;
+        LIMIT 1;
     `
 
 	var u User
-	var permissions []string
 
 	err := r.db.QueryRowContext(ctx, query, email).Scan(
 		&u.ID,
@@ -141,13 +116,11 @@ func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) 
 		&u.PasswordHash,
 		&u.IsActive,
 		&u.RoleName,
-		pq.Array(&permissions),
 	)
 	if err != nil {
 		return nil, err
 	}
 
-	u.Permissions = permissions
 	return &u, nil
 }
 

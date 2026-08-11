@@ -51,37 +51,18 @@ func (s *Service) RegisterCompanyAndAdmin(ctx context.Context, dto RegisterDTO) 
 	}
 
 	// Lista de roles iniciales requeridos para el flujo de la constructora según el diseño original
-	rolesWithPermissions := map[string][]string{
-		"Administrador": {"*"}, // Comodín: acceso a todas las acciones
-		"Gerente": {
-			"projects:read", "projects:create", "projects:update",
-			"budgets:read", "budgets:approve",
-			"purchases:read", "purchases:approve",
-			"inventory:read", "users:read",
-		},
-		"Ingeniero": {
-			"projects:read", "projects:create", "projects:update",
-			"budgets:read", "purchases:create", "purchases:read",
-			"inventory:read",
-		},
-		"Compras": {
-			"purchases:read", "purchases:create", "purchases:approve",
-			"inventory:read", "projects:read",
-		},
-		"Contabilidad": {
-			"budgets:read", "purchases:read", "projects:read",
-		},
-		"Almacén": {
-			"inventory:read", "inventory:manage",
-			"purchases:read", "projects:read",
-		},
-		"Supervisor": {
-			"projects:read", "inventory:read", "budgets:read",
-		},
+	defaultRoles := []string{
+		"Administrador",
+		"Gerente",
+		"Ingeniero",
+		"Compras",
+		"Contabilidad",
+		"Almacén",
+		"Supervisor",
 	}
 
 	// Enviar al repositorio para ejecutar la transacción
-	err = s.repo.ExecRegistryTransaction(ctx, company, adminUser, rolesWithPermissions)
+	err = s.repo.ExecRegistryTransaction(ctx, company, adminUser, defaultRoles)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -113,11 +94,10 @@ func (s *Service) Login(ctx context.Context, dto LoginDto) (*LoginResponse, erro
 	return &LoginResponse{
 		Token: tokenString,
 		User: UserResponse{
-			ID:          user.ID,
-			Name:        user.Name,
-			Email:       user.Email,
-			Role:        user.RoleName,
-			Permissions: user.Permissions,
+			ID:    user.ID,
+			Name:  user.Name,
+			Email: user.Email,
+			Role:  user.RoleName,
 		},
 	}, nil
 }
@@ -131,9 +111,9 @@ func (s *Service) generateJwt(user *User) (string, error) {
 
 	// Crear los Claims (Carga útil del token)
 	claims := middlewares.JWTClaims{
-		UserID:      user.ID,
-		CompanyID:   user.CompanyID,
-		Permissions: user.Permissions,
+		UserID:    user.ID,
+		CompanyID: user.CompanyID,
+		Role:      user.RoleName,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(24 * time.Hour)), // Expira en 24 horas
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
