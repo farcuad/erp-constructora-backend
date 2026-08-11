@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -62,6 +63,7 @@ func (r *Repository) GetOrdersByProject(ctx context.Context, projectID string) (
 	          FROM purchase_orders WHERE project_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] purchase.GetOrdersByProject (project_id=%s): %v", projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -70,11 +72,15 @@ func (r *Repository) GetOrdersByProject(ctx context.Context, projectID string) (
 	for rows.Next() {
 		var po PurchaseOrder
 		if err := rows.Scan(&po.ID, &po.CompanyID, &po.ProjectID, &po.SupplierID, &po.UserID, &po.OrderNumber, &po.Status, &po.TotalAmount, &po.DeliveryDate, &po.Notes, &po.CreatedAt, &po.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] purchase.GetOrdersByProject (project_id=%s): %v", projectID, err)
 			return nil, err
-		} else if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		orders = append(orders, po)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] purchase.GetOrdersByProject (project_id=%s): %v", projectID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return orders, nil
 }

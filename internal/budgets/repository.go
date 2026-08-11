@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -140,9 +141,12 @@ func (r *repository) Delete(ctx context.Context, companyID string, id string) er
 }
 
 func (r *repository) GetBudgetsProjectID(ctx context.Context, companyID string, projectID string) ([]Budget, error) {
+	// OJO: este `SELECT *` depende del orden físico de las columnas en la tabla.
+	// Si alguna migración agrega/reordena columnas, el Scan de abajo revienta.
 	query := "SELECT * FROM budgets WHERE company_id = $1 AND project_id = $2"
 	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] budgets.GetBudgetsProjectID (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -151,11 +155,15 @@ func (r *repository) GetBudgetsProjectID(ctx context.Context, companyID string, 
 	for rows.Next() {
 		var budget Budget
 		if err := rows.Scan(&budget.ID, &budget.CompanyID, &budget.ProjectID, &budget.Title, &budget.Description, &budget.TotalAmount, &budget.CreatedAt, &budget.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] budgets.GetBudgetsProjectID (company_id=%s project_id=%s): %v", companyID, projectID, err)
 			return nil, err
-		} else if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		budgets = append(budgets, budget)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] budgets.GetBudgetsProjectID (company_id=%s project_id=%s): %v", companyID, projectID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return budgets, nil
 }

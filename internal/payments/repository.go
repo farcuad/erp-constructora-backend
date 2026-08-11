@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -136,6 +137,7 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] payments.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -144,11 +146,13 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 	for rows.Next() {
 		var inv Invoice
 		if err := rows.Scan(&inv.ID, &inv.CompanyID, &inv.ProjectID, &inv.InvoiceNumber, &inv.Type, &inv.Status, &inv.ClientID, &inv.SupplierID, &inv.ContractorID, &inv.IssueDate, &inv.DueDate, &inv.Subtotal, &inv.TaxAmount, &inv.TotalAmount, &inv.RemainingAmount, &inv.Notes, &inv.CreatedAt, &inv.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] payments.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 			return nil, err
 		}
 		invoices = append(invoices, inv)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] payments.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return invoices, nil
@@ -159,12 +163,14 @@ func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Invoic
 
 	var inv Invoice
 	if err := r.db.QueryRowContext(ctx, query, companyID, id).Scan(&inv.ID, &inv.CompanyID, &inv.ProjectID, &inv.InvoiceNumber, &inv.Type, &inv.Status, &inv.ClientID, &inv.SupplierID, &inv.ContractorID, &inv.IssueDate, &inv.DueDate, &inv.Subtotal, &inv.TaxAmount, &inv.TotalAmount, &inv.RemainingAmount, &inv.Notes, &inv.CreatedAt, &inv.UpdatedAt); err != nil {
+		log.Printf("[DB QUERY ERROR] payments.GetByID > cabecera (company_id=%s id=%s): %v", companyID, id, err)
 		return nil, err
 	}
 
 	itemQuery := `SELECT id, company_id, invoice_id, description, quantity, unit_price, total FROM invoice_items WHERE invoice_id = $1`
 	itemRows, err := r.db.QueryContext(ctx, itemQuery, inv.ID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] payments.GetByID > items (invoice_id=%s): %v", inv.ID, err)
 		return nil, err
 	}
 	defer itemRows.Close()
@@ -172,11 +178,19 @@ func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Invoic
 	for itemRows.Next() {
 		var item InvoiceItem
 		if err := itemRows.Scan(&item.ID, &item.CompanyID, &item.InvoiceID, &item.Description, &item.Quantity, &item.UnitPrice, &item.Total); err != nil {
+			log.Printf("[DB SCAN ERROR] payments.GetByID > items (invoice_id=%s): %v", inv.ID, err)
 			return nil, err
 		}
 		inv.Items = append(inv.Items, item)
 	}
 
+	if err := itemRows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] payments.GetByID > items (invoice_id=%s): %v", inv.ID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
+
+	// OJO: esta llamada ocurre con itemRows todavía abierto, así que sostiene
+	// 2 conexiones del pool a la vez.
 	payments, err := r.GetPaymentsByInvoice(ctx, companyID, inv.ID)
 	if err != nil {
 		return nil, err
@@ -192,6 +206,7 @@ func (r *Repository) GetPaymentsByInvoice(ctx context.Context, companyID, invoic
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, invoiceID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] payments.GetPaymentsByInvoice (company_id=%s invoice_id=%s): %v", companyID, invoiceID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -200,11 +215,13 @@ func (r *Repository) GetPaymentsByInvoice(ctx context.Context, companyID, invoic
 	for rows.Next() {
 		var p Payment
 		if err := rows.Scan(&p.ID, &p.CompanyID, &p.ProjectID, &p.InvoiceID, &p.PaymentDate, &p.Amount, &p.PaymentMethod, &p.Reference, &p.Notes, &p.CreatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] payments.GetPaymentsByInvoice (company_id=%s invoice_id=%s): %v", companyID, invoiceID, err)
 			return nil, err
 		}
 		payments = append(payments, p)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] payments.GetPaymentsByInvoice (company_id=%s invoice_id=%s): %v", companyID, invoiceID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return payments, nil

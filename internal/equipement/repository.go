@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -34,6 +35,7 @@ func (r *Repository) GetEquipmentByCompany(ctx context.Context, companyID string
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] equipement.GetEquipmentByCompany (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -42,11 +44,15 @@ func (r *Repository) GetEquipmentByCompany(ctx context.Context, companyID string
 	for rows.Next() {
 		var e Equipment
 		if err := rows.Scan(&e.ID, &e.CompanyID, &e.TypeID, &e.Name, &e.PlateNumber, &e.Model, &e.Brand, &e.Status, &e.OwnershipType, &e.CreatedAt, &e.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] equipement.GetEquipmentByCompany (company_id=%s): %v", companyID, err)
 			return nil, err
-		} else if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		list = append(list, e)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] equipement.GetEquipmentByCompany (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return list, nil
 }
@@ -118,6 +124,7 @@ func (r *Repository) GetEquipementMaintenance(ctx context.Context, equipmentID s
 
 	rows, err := r.db.QueryContext(ctx, query, equipmentID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] equipement.GetEquipementMaintenance (equipment_id=%s): %v", equipmentID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -128,12 +135,14 @@ func (r *Repository) GetEquipementMaintenance(ctx context.Context, equipmentID s
 		err := rows.Scan(&et.ID, &et.EquipmentID, &et.MaintenanceType, &et.Description,
 			&et.Cost, &et.MaintenanceDate, &et.NextDueDate, &et.CreatedAt)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] equipement.GetEquipementMaintenance (equipment_id=%s): %v", equipmentID, err)
 			return nil, err
 		}
 		records = append(records, &et)
 	}
 
 	if err = rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] equipement.GetEquipementMaintenance (equipment_id=%s): %v", equipmentID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
@@ -161,6 +170,7 @@ func (r *Repository) GetEquipementAssignment(ctx context.Context, equipmentID st
 
 	rows, err := r.db.QueryContext(ctx, query, equipmentID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] equipement.GetEquipementAssignment (equipment_id=%s): %v", equipmentID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -171,12 +181,14 @@ func (r *Repository) GetEquipementAssignment(ctx context.Context, equipmentID st
 		err := rows.Scan(&et.ID, &et.EquipmentID, &et.ProjectID, &et.AssignedBy,
 			&et.StartDate, &et.EndDate, &et.Notes, &et.CreatedAt)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] equipement.GetEquipementAssignment (equipment_id=%s): %v", equipmentID, err)
 			return nil, err
 		}
 		records = append(records, &et)
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] equipement.GetEquipementAssignment (equipment_id=%s): %v", equipmentID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
@@ -205,6 +217,7 @@ func (r *Repository) GetEquipmentType(ctx context.Context, companyID string) ([]
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] equipement.GetEquipmentType (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -214,12 +227,14 @@ func (r *Repository) GetEquipmentType(ctx context.Context, companyID string) ([]
 		var et EquipmentType
 		err := rows.Scan(&et.ID, &et.CompanyID, &et.Name, &et.CreatedAt)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] equipement.GetEquipmentType (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		equipmentType = append(equipmentType, et)
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] equipement.GetEquipmentType (company_id=%s): %v", companyID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 

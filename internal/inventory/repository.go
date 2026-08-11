@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -98,6 +99,7 @@ func (r *Repository) GetStockByWarehouse(ctx context.Context, warehouseID string
 
 	rows, err := r.db.QueryContext(ctx, query, warehouseID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] inventory.GetStockByWarehouse (warehouse_id=%s): %v", warehouseID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -106,11 +108,15 @@ func (r *Repository) GetStockByWarehouse(ctx context.Context, warehouseID string
 	for rows.Next() {
 		var s MaterialStock
 		if err := rows.Scan(&s.MaterialID, &s.MaterialName, &s.Code, &s.Unit, &s.Quantity); err != nil {
+			log.Printf("[DB SCAN ERROR] inventory.GetStockByWarehouse (warehouse_id=%s): %v", warehouseID, err)
 			return nil, err
-		} else if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		stocks = append(stocks, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] inventory.GetStockByWarehouse (warehouse_id=%s): %v", warehouseID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return stocks, nil
 }
@@ -122,6 +128,7 @@ func (r *Repository) GetMaterials(ctx context.Context, companyID string) ([]Mate
 	// 1. Usamos QueryContext en lugar de QueryRowContext para traer múltiples filas
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] inventory.GetMaterials (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close() // ¡Súper importante cerrar los rows al terminar!
@@ -143,7 +150,8 @@ func (r *Repository) GetMaterials(ctx context.Context, companyID string) ([]Mate
 			&m.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
+			log.Printf("[DB SCAN ERROR] inventory.GetMaterials (company_id=%s): %v", companyID, err)
+			return nil, fmt.Errorf("error escaneando fila: %w", err)
 		}
 		// Agregamos el material al slice
 		materials = append(materials, m)
@@ -151,7 +159,8 @@ func (r *Repository) GetMaterials(ctx context.Context, companyID string) ([]Mate
 
 	// 4. Verificamos si hubo algún error durante la iteración
 	if err = rows.Err(); err != nil {
-		return nil, err
+		log.Printf("[DB ROWS ITERATION ERROR] inventory.GetMaterials (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return materials, nil
@@ -189,6 +198,7 @@ func (r *Repository) GetWarehouses(ctx context.Context, companyID string) ([]War
 	          FROM warehouses WHERE company_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] inventory.GetWarehouses (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -197,12 +207,14 @@ func (r *Repository) GetWarehouses(ctx context.Context, companyID string) ([]War
 		var warehouse Warehouse
 		err := rows.Scan(&warehouse.ID, &warehouse.CompanyID, &warehouse.ProjectID, &warehouse.Name, &warehouse.Location, &warehouse.CreatedAt)
 		if err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
+			log.Printf("[DB SCAN ERROR] inventory.GetWarehouses (company_id=%s): %v", companyID, err)
+			return nil, fmt.Errorf("error escaneando fila: %w", err)
 		}
 		w = append(w, warehouse)
 	}
 	if err = rows.Err(); err != nil {
-		return nil, err
+		log.Printf("[DB ROWS ITERATION ERROR] inventory.GetWarehouses (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return w, nil
 }

@@ -7,6 +7,8 @@ import (
 
 	"erp-constructora/internal/database"
 
+	"time"
+
 	"github.com/joho/godotenv"
 )
 
@@ -34,6 +36,23 @@ func enableCORS(next http.Handler) http.Handler {
 		}
 
 		next.ServeHTTP(w, r)
+	})
+}
+
+func loggerAndRecovery(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+
+		defer func() {
+			if err := recover(); err != nil {
+				log.Printf("[PANIC CRITICAL] %s %s | Error: %v", r.Method, r.URL.Path, err)
+				http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+			}
+		}()
+
+		log.Printf("[REQ] %s %s", r.Method, r.URL.Path)
+		next.ServeHTTP(w, r)
+		log.Printf("[RES] %s %s - %v", r.Method, r.URL.Path, time.Since(start))
 	})
 }
 
@@ -75,7 +94,9 @@ func main() {
 	}
 
 	log.Printf("Servidor corriendo en el puerto :%s...", port)
-	if err := http.ListenAndServe(":"+port, enableCORS(router)); err != nil {
+	finalHandler := enableCORS(loggerAndRecovery(router))
+
+	if err := http.ListenAndServe(":"+port, finalHandler); err != nil {
 		log.Fatal(err)
 	}
 }

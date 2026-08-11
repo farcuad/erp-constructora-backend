@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -60,6 +61,7 @@ func (r *Repository) GetReportWithProgress(ctx context.Context, companyID, proje
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, projectID, date)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] progress.GetReportWithProgress (company_id=%s project_id=%s date=%s): %v", companyID, projectID, date, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -81,6 +83,7 @@ func (r *Repository) GetReportWithProgress(ctx context.Context, companyID, proje
 			&peID, &peTaskID, &peProgressPercentage, &peQuantityExecuted, &peNotes,
 		)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] progress.GetReportWithProgress (company_id=%s project_id=%s date=%s): %v", companyID, projectID, date, err)
 			return nil, err
 		}
 
@@ -116,14 +119,12 @@ func (r *Repository) GetReportWithProgress(ctx context.Context, companyID, proje
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		log.Printf("[DB ROWS ITERATION ERROR] progress.GetReportWithProgress (company_id=%s project_id=%s date=%s): %v", companyID, projectID, date, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	if report == nil {
 		return nil, sql.ErrNoRows
-	}
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return report, nil

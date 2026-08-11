@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -27,6 +28,7 @@ func (r *Repository) GetByProject(ctx context.Context, projectID string) ([]Task
 
 	rows, err := r.db.QueryContext(ctx, query, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] schedule.GetByProject (project_id=%s): %v", projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -35,12 +37,14 @@ func (r *Repository) GetByProject(ctx context.Context, projectID string) ([]Task
 	for rows.Next() {
 		var t Task
 		if err := rows.Scan(&t.ID, &t.ProjectID, &t.Name, &t.Description, &t.StartDate, &t.EndDate, &t.Progress, &t.Status, &t.CreatedAt, &t.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] schedule.GetByProject (project_id=%s): %v", projectID, err)
 			return nil, err
 		}
 		tasks = append(tasks, t)
 	}
 
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] schedule.GetByProject (project_id=%s): %v", projectID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return tasks, nil

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -109,6 +110,7 @@ func (r *Repository) GetAll(ctx context.Context, companyID string) ([]Project, e
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] project.GetAll (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -122,9 +124,15 @@ func (r *Repository) GetAll(ctx context.Context, companyID string) ([]Project, e
 			&p.StartDate, &p.EndDate, &p.Budget, &p.StatusID, &p.CreatedAt, &p.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
+			log.Printf("[DB SCAN ERROR] project.GetAll (company_id=%s): %v", companyID, err)
+			return nil, fmt.Errorf("error escaneando fila: %w", err)
 		}
 		projects = append(projects, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] project.GetAll (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return projects, nil
 }

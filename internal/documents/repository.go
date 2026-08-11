@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -167,6 +168,7 @@ func (r *Repository) GetTypes(ctx context.Context, companyID string) ([]Document
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] documents.GetTypes (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -175,11 +177,13 @@ func (r *Repository) GetTypes(ctx context.Context, companyID string) ([]Document
 	for rows.Next() {
 		var t DocumentType
 		if err := rows.Scan(&t.ID, &t.CompanyID, &t.Name, &t.Description, &t.CreatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] documents.GetTypes (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		types = append(types, t)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] documents.GetTypes (company_id=%s): %v", companyID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return types, nil
@@ -190,6 +194,7 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] documents.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -198,11 +203,13 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 	for rows.Next() {
 		var d Document
 		if err := rows.Scan(&d.ID, &d.CompanyID, &d.ProjectID, &d.DocumentTypeID, &d.Title, &d.Description, &d.CurrentVersion, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] documents.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 			return nil, err
 		}
 		docs = append(docs, d)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] documents.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return docs, nil
@@ -213,6 +220,7 @@ func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Docume
 
 	var d Document
 	if err := r.db.QueryRowContext(ctx, query, companyID, id).Scan(&d.ID, &d.CompanyID, &d.ProjectID, &d.DocumentTypeID, &d.Title, &d.Description, &d.CurrentVersion, &d.Status, &d.CreatedAt, &d.UpdatedAt); err != nil {
+		log.Printf("[DB QUERY ERROR] documents.GetByID (company_id=%s id=%s): %v", companyID, id, err)
 		return nil, err
 	}
 
@@ -231,6 +239,7 @@ func (r *Repository) GetVersions(ctx context.Context, companyID, documentID stri
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, documentID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] documents.GetVersions (company_id=%s document_id=%s): %v", companyID, documentID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -239,11 +248,13 @@ func (r *Repository) GetVersions(ctx context.Context, companyID, documentID stri
 	for rows.Next() {
 		var v DocumentVersion
 		if err := rows.Scan(&v.ID, &v.CompanyID, &v.DocumentID, &v.VersionNumber, &v.FileURL, &v.FileSize, &v.FileExtension, &v.ChangeLog, &v.UserID, &v.CreatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] documents.GetVersions (company_id=%s document_id=%s): %v", companyID, documentID, err)
 			return nil, err
 		}
 		versions = append(versions, v)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] documents.GetVersions (company_id=%s document_id=%s): %v", companyID, documentID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return versions, nil

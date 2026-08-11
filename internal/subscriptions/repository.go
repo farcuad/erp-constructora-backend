@@ -3,6 +3,8 @@ package subscriptions
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"log"
 	"time"
 )
 
@@ -65,6 +67,9 @@ func (r *Repository) GetByCompany(ctx context.Context, companyID string) (*Compa
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
+		// Esta query corre 2 veces por cada request protegido (middleware de suscripción).
+		// Si el pool está roto, este es el primer lugar donde se ve.
+		log.Printf("[DB QUERY ERROR] subscriptions.GetByCompany (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 
@@ -162,6 +167,7 @@ func (r *Repository) GetAllWithCompany(ctx context.Context) ([]SubscriptionWithC
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] subscriptions.GetAllWithCompany: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -181,6 +187,7 @@ func (r *Repository) GetAllWithCompany(ctx context.Context) ([]SubscriptionWithC
 			&s.CompanyName, &s.CompanyNIT, &s.CompanyEmail,
 		)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] subscriptions.GetAllWithCompany: %v", err)
 			return nil, err
 		}
 
@@ -191,12 +198,25 @@ func (r *Repository) GetAllWithCompany(ctx context.Context) ([]SubscriptionWithC
 		if cancelled.Valid { s.CancelledAt = &cancelled.Time }
 		if features.Valid { s.Features = features.String }
 
-		userCount, _ := r.CountActiveUsers(ctx, s.CompanyID)
-		projectCount, _ := r.CountActiveProjects(ctx, s.CompanyID)
+		// OJO: estas dos queries corren con `rows` todavía abierto, así que este
+		// bloque sostiene 2 conexiones del pool a la vez por cada request.
+		userCount, errUsers := r.CountActiveUsers(ctx, s.CompanyID)
+		if errUsers != nil {
+			log.Printf("[DB QUERY ERROR] subscriptions.GetAllWithCompany > CountActiveUsers (company_id=%s): %v", s.CompanyID, errUsers)
+		}
+		projectCount, errProjects := r.CountActiveProjects(ctx, s.CompanyID)
+		if errProjects != nil {
+			log.Printf("[DB QUERY ERROR] subscriptions.GetAllWithCompany > CountActiveProjects (company_id=%s): %v", s.CompanyID, errProjects)
+		}
 		s.UserCount = userCount
 		s.ProjectCount = projectCount
 
 		subs = append(subs, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] subscriptions.GetAllWithCompany: %v", err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return subs, nil
 }
@@ -222,6 +242,7 @@ func (r *Repository) GetByID(ctx context.Context, id string) (*CompanySubscripti
 		&s.CreatedAt, &s.UpdatedAt,
 	)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] subscriptions.GetByID (id=%s): %v", id, err)
 		return nil, err
 	}
 
@@ -245,6 +266,7 @@ func (r *Repository) GetPaymentsByCompany(ctx context.Context, companyID string)
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] subscriptions.GetPaymentsByCompany (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -253,9 +275,15 @@ func (r *Repository) GetPaymentsByCompany(ctx context.Context, companyID string)
 	for rows.Next() {
 		var p PaymentRecord
 		if err := rows.Scan(&p.ID, &p.InvoiceID, &p.InvoiceNumber, &p.PaymentDate, &p.Amount, &p.PaymentMethod, &p.Reference); err != nil {
+			log.Printf("[DB SCAN ERROR] subscriptions.GetPaymentsByCompany (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		payments = append(payments, p)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] subscriptions.GetPaymentsByCompany (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return payments, nil
 }

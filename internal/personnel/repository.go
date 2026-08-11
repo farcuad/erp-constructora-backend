@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -37,6 +38,7 @@ func (r *Repository) GetEmployeesByCompany(ctx context.Context, companyID string
 	          FROM employees WHERE company_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] personnel.GetEmployeesByCompany (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -45,11 +47,13 @@ func (r *Repository) GetEmployeesByCompany(ctx context.Context, companyID string
 	for rows.Next() {
 		var e Employee
 		if err := rows.Scan(&e.ID, &e.CompanyID, &e.PositionID, &e.FirstName, &e.LastName, &e.DNI, &e.Phone, &e.Email, &e.Status, &e.CreatedAt, &e.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] personnel.GetEmployeesByCompany (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		employees = append(employees, e)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] personnel.GetEmployeesByCompany (company_id=%s): %v", companyID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return employees, nil
@@ -77,6 +81,7 @@ func (r *Repository) GetPosition(ctx context.Context, companyID string) ([]Posit
 	          FROM positions WHERE company_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] personnel.GetPosition (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -85,11 +90,13 @@ func (r *Repository) GetPosition(ctx context.Context, companyID string) ([]Posit
 	for rows.Next() {
 		var e Position
 		if err := rows.Scan(&e.ID, &e.CompanyID, &e.Name, &e.BaseSalary, &e.CreatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] personnel.GetPosition (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		positions = append(positions, e)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] personnel.GetPosition (company_id=%s): %v", companyID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return positions, nil
@@ -127,6 +134,7 @@ func (r *Repository) GetContract(ctx context.Context, projectID string) ([]Contr
 	          FROM contracts WHERE project_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] personnel.GetContract (project_id=%s): %v", projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -136,11 +144,13 @@ func (r *Repository) GetContract(ctx context.Context, projectID string) ([]Contr
 		var e Contract
 		if err := rows.Scan(&e.ID, &e.EmployeeID, &e.ProjectID, &e.ContractType, &e.Salary,
 			&e.StartDate, &e.EndDate, &e.Status, &e.CreatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] personnel.GetContract (project_id=%s): %v", projectID, err)
 			return nil, err
 		}
 		contracts = append(contracts, e)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] personnel.GetContract (project_id=%s): %v", projectID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return contracts, nil

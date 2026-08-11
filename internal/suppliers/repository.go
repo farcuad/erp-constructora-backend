@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -29,6 +30,7 @@ func (r *Repository) GetSuppliersByCompany(ctx context.Context, companyID string
 	          FROM suppliers WHERE company_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] suppliers.GetSuppliersByCompany (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -37,11 +39,15 @@ func (r *Repository) GetSuppliersByCompany(ctx context.Context, companyID string
 	for rows.Next() {
 		var s Supplier
 		if err := rows.Scan(&s.ID, &s.CompanyID, &s.Name, &s.NIT, &s.Address, &s.Phone, &s.Email, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] suppliers.GetSuppliersByCompany (company_id=%s): %v", companyID, err)
 			return nil, err
-		} else if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		suppliers = append(suppliers, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] suppliers.GetSuppliersByCompany (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return suppliers, nil
 }

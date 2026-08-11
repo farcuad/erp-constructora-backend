@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"log"
 
 	"github.com/lib/pq" // Requerido para pasar arrays nativos a PostgreSQL
 )
@@ -78,6 +80,7 @@ func (r *Repository) GetUserNotifications(ctx context.Context, companyID, userID
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, userID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] notifications.GetUserNotifications (company_id=%s user_id=%s): %v", companyID, userID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -93,11 +96,17 @@ func (r *Repository) GetUserNotifications(ctx context.Context, companyID, userID
 			&n.CreatedAt, &n.IsRead,
 		)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] notifications.GetUserNotifications (company_id=%s user_id=%s): %v", companyID, userID, err)
 			return nil, err
 		}
 
 		n.Metadata = json.RawMessage(metaBytes)
 		list = append(list, n)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] notifications.GetUserNotifications (company_id=%s user_id=%s): %v", companyID, userID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return list, nil
 }

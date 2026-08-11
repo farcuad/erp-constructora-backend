@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 )
 
@@ -112,6 +113,7 @@ func (r *repository) GetByCompany(ctx context.Context, companyID string) ([]Clie
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] clients.GetByCompany (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -124,9 +126,15 @@ func (r *repository) GetByCompany(ctx context.Context, companyID string) ([]Clie
 			&client.Phone, &client.Email, &client.IsActive, &client.CreatedAt, &client.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
+			log.Printf("[DB SCAN ERROR] clients.GetByCompany (company_id=%s): %v", companyID, err)
+			return nil, fmt.Errorf("error escaneando fila: %w", err)
 		}
 		clients = append(clients, client)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] clients.GetByCompany (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return clients, nil
 }

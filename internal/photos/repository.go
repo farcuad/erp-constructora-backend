@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -42,6 +43,7 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] photos.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -54,11 +56,13 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 			&p.UserID, &p.PhotoURL, &p.Description, &p.Latitude, &p.Longitude, &p.CreatedAt,
 		)
 		if err != nil {
+			log.Printf("[DB SCAN ERROR] photos.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 			return nil, err
 		}
 		photos = append(photos, p)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] photos.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return photos, nil

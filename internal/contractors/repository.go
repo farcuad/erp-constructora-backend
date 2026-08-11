@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -78,6 +79,7 @@ func (r *Repository) GetContractPayment(ctx context.Context) ([]ContractorPaymen
 
 	rows, err := r.db.QueryContext(ctx, query)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] contractors.GetContractPayment: %v", err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -86,11 +88,13 @@ func (r *Repository) GetContractPayment(ctx context.Context) ([]ContractorPaymen
 	for rows.Next() {
 		var cc ContractorPayment
 		if err := rows.Scan(&cc.ID, &cc.ContractID, &cc.UserID, &cc.Amount, &cc.PaymentDate, &cc.ReferenceNumber, &cc.Notes, &cc.CreatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] contractors.GetContractPayment: %v", err)
 			return nil, err
 		}
 		contractorPayment = append(contractorPayment, cc)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] contractors.GetContractPayment: %v", err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return contractorPayment, nil
@@ -102,6 +106,7 @@ func (r *Repository) GetContractsByProject(ctx context.Context, projectID string
 
 	rows, err := r.db.QueryContext(ctx, query, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] contractors.GetContractsByProject (project_id=%s): %v", projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -110,9 +115,15 @@ func (r *Repository) GetContractsByProject(ctx context.Context, projectID string
 	for rows.Next() {
 		var cc ContractorContract
 		if err := rows.Scan(&cc.ID, &cc.CompanyID, &cc.ContractorID, &cc.ProjectID, &cc.Title, &cc.TotalAmount, &cc.Balance, &cc.StartDate, &cc.EndDate, &cc.Status, &cc.CreatedAt, &cc.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] contractors.GetContractsByProject (project_id=%s): %v", projectID, err)
 			return nil, err
 		}
 		list = append(list, cc)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] contractors.GetContractsByProject (project_id=%s): %v", projectID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return list, nil
 }
@@ -123,6 +134,7 @@ func (r *Repository) GetContracts(ctx context.Context, companyID string) ([]Cont
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] contractors.GetContracts (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -132,11 +144,13 @@ func (r *Repository) GetContracts(ctx context.Context, companyID string) ([]Cont
 		var cc Contractor
 		if err := rows.Scan(&cc.ID, &cc.CompanyID, &cc.Name, &cc.NIT, &cc.Representative, &cc.Phone, &cc.Email,
 			&cc.IsActive, &cc.CreatedAt, &cc.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] contractors.GetContracts (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		contractor = append(contractor, cc)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] contractors.GetContracts (company_id=%s): %v", companyID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return contractor, nil

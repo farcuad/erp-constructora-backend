@@ -7,6 +7,7 @@ import (
 	"errors"
 
 	"fmt"
+	"log"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -153,6 +154,7 @@ func (r *Repository) GetRolesByCompanyID(ctx context.Context, companyID string) 
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] users.GetRolesByCompanyID (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -161,12 +163,14 @@ func (r *Repository) GetRolesByCompanyID(ctx context.Context, companyID string) 
 	for rows.Next() {
 		var role Role
 		if err := rows.Scan(&role.ID, &role.CompanyID, &role.Name, &role.Description); err != nil {
+			log.Printf("[DB SCAN ERROR] users.GetRolesByCompanyID (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 
 		roles = append(roles, role)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] users.GetRolesByCompanyID (company_id=%s): %v", companyID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return roles, nil
@@ -188,6 +192,7 @@ func (r *Repository) GetUsersExcludingAdmin(ctx context.Context, companyID strin
 
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] users.GetUsersExcludingAdmin (company_id=%s): %v", companyID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -196,9 +201,15 @@ func (r *Repository) GetUsersExcludingAdmin(ctx context.Context, companyID strin
 	for rows.Next() {
 		var u UserResponse
 		if err := rows.Scan(&u.ID, &u.Name, &u.Email, &u.Role); err != nil {
+			log.Printf("[DB SCAN ERROR] users.GetUsersExcludingAdmin (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
 		users = append(users, u)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] users.GetUsersExcludingAdmin (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return users, nil

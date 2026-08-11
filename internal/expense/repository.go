@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -124,6 +125,7 @@ func (r *repository) GetByProject(ctx context.Context, companyID string, project
 
 	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] expense.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, err
 	}
 	defer rows.Close()
@@ -136,10 +138,16 @@ func (r *repository) GetByProject(ctx context.Context, companyID string, project
 			&exp.ID, &exp.CompanyID, &exp.ProjectID, &exp.CategoryID, &exp.UserID, &exp.Title, &exp.Amount, &expenseTime, &exp.Description, &exp.CreatedAt, &exp.UpdatedAt,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error iterando filas: %w", err)
+			log.Printf("[DB SCAN ERROR] expense.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
+			return nil, fmt.Errorf("error escaneando fila: %w", err)
 		}
 		exp.ExpenseDate = expenseTime.Format("2006-01-02")
 		expenses = append(expenses, exp)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] expense.GetByProject (company_id=%s project_id=%s): %v", companyID, projectID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return expenses, nil
 }

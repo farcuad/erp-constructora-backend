@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 )
 
 type Repository struct {
@@ -64,6 +65,7 @@ func (r *Repository) GetAttendanceByProjectAndDate(ctx context.Context, projectI
 	if err == sql.ErrNoRows {
 		return nil, nil // No hay registros para ese día
 	} else if err != nil {
+		log.Printf("[DB QUERY ERROR] attendance.GetAttendanceByProjectAndDate > cabecera (project_id=%s date=%s): %v", projectID, date, err)
 		return nil, err
 	}
 
@@ -72,18 +74,21 @@ func (r *Repository) GetAttendanceByProjectAndDate(ctx context.Context, projectI
 
 	rows, err := r.db.QueryContext(ctx, queryLogs, a.ID)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] attendance.GetAttendanceByProjectAndDate > logs (attendance_id=%s): %v", a.ID, err)
 		return nil, err
 	}
 	defer rows.Close()
 
 	for rows.Next() {
-		var log AttendanceLog
-		if err := rows.Scan(&log.ID, &log.AttendanceID, &log.EmployeeID, &log.Status, &log.HoursWorked, &log.Notes, &log.CreatedAt, &log.UpdatedAt); err != nil {
+		var entry AttendanceLog
+		if err := rows.Scan(&entry.ID, &entry.AttendanceID, &entry.EmployeeID, &entry.Status, &entry.HoursWorked, &entry.Notes, &entry.CreatedAt, &entry.UpdatedAt); err != nil {
+			log.Printf("[DB SCAN ERROR] attendance.GetAttendanceByProjectAndDate > logs (attendance_id=%s): %v", a.ID, err)
 			return nil, err
 		}
-		a.Logs = append(a.Logs, log)
+		a.Logs = append(a.Logs, entry)
 	}
 	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] attendance.GetAttendanceByProjectAndDate > logs (attendance_id=%s): %v", a.ID, err)
 		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return &a, nil

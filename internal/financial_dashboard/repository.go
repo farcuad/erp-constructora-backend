@@ -3,6 +3,7 @@ package financialdashboard
 import (
 	"context"
 	"database/sql"
+	"log"
 )
 
 type Repository struct {
@@ -39,6 +40,7 @@ func (r *Repository) GetProjectFinancialSummary(ctx context.Context, companyID, 
 		&kpi.TotalPaidToProv,
 	)
 	if err != nil {
+		log.Printf("[DB QUERY ERROR] financialdashboard.GetProjectFinancialSummary (company_id=%s project_id=%s): %v", companyID, projectID, err)
 		return nil, err
 	}
 
