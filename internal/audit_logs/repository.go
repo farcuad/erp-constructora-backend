@@ -3,6 +3,7 @@ package audit
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -52,6 +53,9 @@ func (r *Repository) GetByCompany(ctx context.Context, companyID string) ([]Audi
 			return nil, err
 		}
 		logs = append(logs, l)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return logs, nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 type Repository struct {
@@ -89,6 +90,9 @@ func (r *Repository) GetContractPayment(ctx context.Context) ([]ContractorPaymen
 		}
 		contractorPayment = append(contractorPayment, cc)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return contractorPayment, nil
 }
 
@@ -131,6 +135,9 @@ func (r *Repository) GetContracts(ctx context.Context, companyID string) ([]Cont
 			return nil, err
 		}
 		contractor = append(contractor, cc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return contractor, nil
 }

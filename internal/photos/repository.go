@@ -3,6 +3,7 @@ package photos
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -56,6 +57,9 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 			return nil, err
 		}
 		photos = append(photos, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return photos, nil
 }

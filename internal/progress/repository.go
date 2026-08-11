@@ -3,6 +3,7 @@ package progress
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"time"
 )
 
@@ -120,6 +121,9 @@ func (r *Repository) GetReportWithProgress(ctx context.Context, companyID, proje
 
 	if report == nil {
 		return nil, sql.ErrNoRows
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return report, nil

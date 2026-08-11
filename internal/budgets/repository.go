@@ -152,6 +152,8 @@ func (r *repository) GetBudgetsProjectID(ctx context.Context, companyID string, 
 		var budget Budget
 		if err := rows.Scan(&budget.ID, &budget.CompanyID, &budget.ProjectID, &budget.Title, &budget.Description, &budget.TotalAmount, &budget.CreatedAt, &budget.UpdatedAt); err != nil {
 			return nil, err
+		} else if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		budgets = append(budgets, budget)
 	}

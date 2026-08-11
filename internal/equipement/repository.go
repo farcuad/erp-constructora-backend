@@ -3,6 +3,7 @@ package equipement
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -42,6 +43,8 @@ func (r *Repository) GetEquipmentByCompany(ctx context.Context, companyID string
 		var e Equipment
 		if err := rows.Scan(&e.ID, &e.CompanyID, &e.TypeID, &e.Name, &e.PlateNumber, &e.Model, &e.Brand, &e.Status, &e.OwnershipType, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			return nil, err
+		} else if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		list = append(list, e)
 	}
@@ -131,7 +134,7 @@ func (r *Repository) GetEquipementMaintenance(ctx context.Context, equipmentID s
 	}
 
 	if err = rows.Err(); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return records, nil
@@ -173,8 +176,8 @@ func (r *Repository) GetEquipementAssignment(ctx context.Context, equipmentID st
 		records = append(records, &et)
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return records, nil
@@ -216,8 +219,8 @@ func (r *Repository) GetEquipmentType(ctx context.Context, companyID string) ([]
 		equipmentType = append(equipmentType, et)
 	}
 
-	if err = rows.Err(); err != nil {
-		return nil, err
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 
 	return equipmentType, nil

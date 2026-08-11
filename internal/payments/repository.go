@@ -3,6 +3,7 @@ package payments
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -147,6 +148,9 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 		}
 		invoices = append(invoices, inv)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return invoices, nil
 }
 
@@ -177,6 +181,7 @@ func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Invoic
 	if err != nil {
 		return nil, err
 	}
+
 	inv.Payments = payments
 
 	return &inv, nil
@@ -198,6 +203,9 @@ func (r *Repository) GetPaymentsByInvoice(ctx context.Context, companyID, invoic
 			return nil, err
 		}
 		payments = append(payments, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return payments, nil
 }

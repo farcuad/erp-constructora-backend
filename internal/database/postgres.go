@@ -20,9 +20,10 @@ func NewPostgresDB(host, port, user, password, dbname string) (*sql.DB, error) {
 	}
 
 	// Configuración del pool de conexiones (Go maneja esto de forma nativa y eficiente)
-	db.SetMaxOpenConns(25)                 // Máximo de conexiones abiertas simultáneas
-	db.SetMaxIdleConns(25)                 // Máximo de conexiones inactivas retenidas
-	db.SetConnMaxLifetime(5 * time.Minute) // Tiempo máximo de vida de una conexión
+	db.SetMaxOpenConns(25)                  // Máximo de conexiones abiertas simultáneas
+	db.SetMaxIdleConns(5)                   // Máximo de conexiones inactivas retenidas
+	db.SetConnMaxLifetime(15 * time.Minute) // Tiempo máximo de vida de una conexión
+	db.SetConnMaxIdleTime(1 * time.Minute)
 
 	// Verificar si realmente hay comunicación con la BD
 	if err := db.Ping(); err != nil {

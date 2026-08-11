@@ -124,7 +124,7 @@ func (r *repository) GetByCompany(ctx context.Context, companyID string) ([]Clie
 			&client.Phone, &client.Email, &client.IsActive, &client.CreatedAt, &client.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		clients = append(clients, client)
 	}

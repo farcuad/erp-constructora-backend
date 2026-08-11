@@ -6,6 +6,8 @@ import (
 
 	"errors"
 
+	"fmt"
+
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -161,9 +163,12 @@ func (r *Repository) GetRolesByCompanyID(ctx context.Context, companyID string) 
 		if err := rows.Scan(&role.ID, &role.CompanyID, &role.Name, &role.Description); err != nil {
 			return nil, err
 		}
+
 		roles = append(roles, role)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return roles, nil
 }
 

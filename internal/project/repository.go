@@ -122,7 +122,7 @@ func (r *Repository) GetAll(ctx context.Context, companyID string) ([]Project, e
 			&p.StartDate, &p.EndDate, &p.Budget, &p.StatusID, &p.CreatedAt, &p.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		projects = append(projects, p)
 	}

@@ -137,15 +137,15 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	adminOnly := middlewares.RequireSuperAdmin
 
 	// Grupos de roles para proteger las rutas. El rol "Administrador" siempre tiene acceso total.
-	managerRoles   := []string{"Gerente"} // gestión general: usuarios, clientes, altas/bajas
-	siteRoles      := []string{"Gerente", "Ingeniero", "Supervisor"}
-	sitePlanning   := []string{"Gerente", "Ingeniero"}
-	purchaseRoles  := []string{"Gerente", "Compras"}
+	managerRoles := []string{"Gerente"} // gestión general: usuarios, clientes, altas/bajas
+	siteRoles := []string{"Gerente", "Ingeniero", "Supervisor"}
+	sitePlanning := []string{"Gerente", "Ingeniero"}
+	purchaseRoles := []string{"Gerente", "Compras"}
 	warehouseRoles := []string{"Gerente", "Almacén"}
-	warehouseSite  := []string{"Gerente", "Ingeniero", "Almacén"}
-	financeRoles   := []string{"Gerente", "Contabilidad"}
+	warehouseSite := []string{"Gerente", "Ingeniero", "Almacén"}
+	financeRoles := []string{"Gerente", "Contabilidad"}
 	siteAndFinance := []string{"Gerente", "Ingeniero", "Supervisor", "Contabilidad"}
-	allRoles       := []string{"Gerente", "Ingeniero", "Supervisor", "Compras", "Contabilidad", "Almacén"}
+	allRoles := []string{"Gerente", "Ingeniero", "Supervisor", "Compras", "Contabilidad", "Almacén"}
 
 	// protected: valida token + suscripción activa + rol del JWT
 	protected := func(roles []string, h http.HandlerFunc) http.Handler {
@@ -319,10 +319,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	// --- Subscriptions ---
 	mux.Handle("GET /subscriptions/me", chain(http.HandlerFunc(subscriptionHandler.GetMySubscription), auth))
-	mux.Handle("GET /subscriptions", chain(http.HandlerFunc(subscriptionHandler.GetAllSubscriptions), adminOnly, auth))
-	mux.Handle("GET /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.GetSubscriptionByID), adminOnly, auth))
-	mux.Handle("POST /subscriptions", chain(http.HandlerFunc(subscriptionHandler.CreateSubscription), adminOnly, auth))
-	mux.Handle("PATCH /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.UpdateSubscription), adminOnly, auth))
+	mux.Handle("GET /subscriptions", chain(http.HandlerFunc(subscriptionHandler.GetAllSubscriptions), auth, adminOnly))
+	mux.Handle("GET /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.GetSubscriptionByID), auth, adminOnly))
+	mux.Handle("POST /subscriptions", chain(http.HandlerFunc(subscriptionHandler.CreateSubscription), auth, adminOnly))
+	mux.Handle("PATCH /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.UpdateSubscription), auth, adminOnly))
 
 	return mux
 }

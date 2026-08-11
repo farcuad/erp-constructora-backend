@@ -3,6 +3,7 @@ package purchase
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -70,6 +71,8 @@ func (r *Repository) GetOrdersByProject(ctx context.Context, projectID string) (
 		var po PurchaseOrder
 		if err := rows.Scan(&po.ID, &po.CompanyID, &po.ProjectID, &po.SupplierID, &po.UserID, &po.OrderNumber, &po.Status, &po.TotalAmount, &po.DeliveryDate, &po.Notes, &po.CreatedAt, &po.UpdatedAt); err != nil {
 			return nil, err
+		} else if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		orders = append(orders, po)
 	}

@@ -136,7 +136,7 @@ func (r *repository) GetByProject(ctx context.Context, companyID string, project
 			&exp.ID, &exp.CompanyID, &exp.ProjectID, &exp.CategoryID, &exp.UserID, &exp.Title, &exp.Amount, &expenseTime, &exp.Description, &exp.CreatedAt, &exp.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		exp.ExpenseDate = expenseTime.Format("2006-01-02")
 		expenses = append(expenses, exp)

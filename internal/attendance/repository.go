@@ -3,6 +3,7 @@ package attendance
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -82,7 +83,9 @@ func (r *Repository) GetAttendanceByProjectAndDate(ctx context.Context, projectI
 		}
 		a.Logs = append(a.Logs, log)
 	}
-
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return &a, nil
 }
 

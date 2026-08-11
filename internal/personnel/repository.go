@@ -3,6 +3,7 @@ package personnel
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -48,6 +49,9 @@ func (r *Repository) GetEmployeesByCompany(ctx context.Context, companyID string
 		}
 		employees = append(employees, e)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return employees, nil
 }
 
@@ -84,6 +88,9 @@ func (r *Repository) GetPosition(ctx context.Context, companyID string) ([]Posit
 			return nil, err
 		}
 		positions = append(positions, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return positions, nil
 }
@@ -132,6 +139,9 @@ func (r *Repository) GetContract(ctx context.Context, projectID string) ([]Contr
 			return nil, err
 		}
 		contracts = append(contracts, e)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return contracts, nil
 }

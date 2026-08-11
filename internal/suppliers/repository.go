@@ -3,6 +3,7 @@ package suppliers
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -37,6 +38,8 @@ func (r *Repository) GetSuppliersByCompany(ctx context.Context, companyID string
 		var s Supplier
 		if err := rows.Scan(&s.ID, &s.CompanyID, &s.Name, &s.NIT, &s.Address, &s.Phone, &s.Email, &s.IsActive, &s.CreatedAt, &s.UpdatedAt); err != nil {
 			return nil, err
+		} else if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		suppliers = append(suppliers, s)
 	}

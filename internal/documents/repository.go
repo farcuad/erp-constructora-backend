@@ -3,6 +3,7 @@ package documents
 import (
 	"context"
 	"database/sql"
+	"fmt"
 )
 
 type Repository struct {
@@ -178,6 +179,9 @@ func (r *Repository) GetTypes(ctx context.Context, companyID string) ([]Document
 		}
 		types = append(types, t)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return types, nil
 }
 
@@ -198,6 +202,9 @@ func (r *Repository) GetByProject(ctx context.Context, companyID, projectID stri
 		}
 		docs = append(docs, d)
 	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
 	return docs, nil
 }
 
@@ -213,6 +220,7 @@ func (r *Repository) GetByID(ctx context.Context, companyID, id string) (*Docume
 	if err != nil {
 		return nil, err
 	}
+
 	d.Versions = versions
 
 	return &d, nil
@@ -234,6 +242,9 @@ func (r *Repository) GetVersions(ctx context.Context, companyID, documentID stri
 			return nil, err
 		}
 		versions = append(versions, v)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterando filas: %w", err)
 	}
 	return versions, nil
 }

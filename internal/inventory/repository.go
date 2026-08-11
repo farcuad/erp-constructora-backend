@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 )
 
 type Repository struct {
@@ -106,6 +107,8 @@ func (r *Repository) GetStockByWarehouse(ctx context.Context, warehouseID string
 		var s MaterialStock
 		if err := rows.Scan(&s.MaterialID, &s.MaterialName, &s.Code, &s.Unit, &s.Quantity); err != nil {
 			return nil, err
+		} else if err := rows.Err(); err != nil {
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		stocks = append(stocks, s)
 	}
@@ -140,7 +143,7 @@ func (r *Repository) GetMaterials(ctx context.Context, companyID string) ([]Mate
 			&m.UpdatedAt,
 		)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		// Agregamos el material al slice
 		materials = append(materials, m)
@@ -194,7 +197,7 @@ func (r *Repository) GetWarehouses(ctx context.Context, companyID string) ([]War
 		var warehouse Warehouse
 		err := rows.Scan(&warehouse.ID, &warehouse.CompanyID, &warehouse.ProjectID, &warehouse.Name, &warehouse.Location, &warehouse.CreatedAt)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("error iterando filas: %w", err)
 		}
 		w = append(w, warehouse)
 	}
