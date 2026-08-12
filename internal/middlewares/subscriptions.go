@@ -33,20 +33,16 @@ func RequireActiveSubscription(svc SubscriptionService) func(http.Handler) http.
 				return
 			}
 
-			active, err := svc.IsSubscriptionActive(r.Context(), companyID)
-			if err != nil || !active {
+			// UNA SOLA CONSULTA A LA BASE DE DATOS
+			info, err := svc.GetSubscriptionInfo(r.Context(), companyID)
+			if err != nil || info == nil || info.Status != "active" { // O la condición que defina si está activa
 				http.Error(w, "Suscripción inactiva o expirada", http.StatusPaymentRequired)
 				return
 			}
 
-			info, err := svc.GetSubscriptionInfo(r.Context(), companyID)
-			if err == nil && info != nil {
-				ctx := context.WithValue(r.Context(), SubscriptionKey, info)
-				next.ServeHTTP(w, r.WithContext(ctx))
-				return
-			}
-
-			next.ServeHTTP(w, r)
+			// Inyectamos info en el contexto para que no haya que consultar la DB otra vez
+			ctx := context.WithValue(r.Context(), SubscriptionKey, info)
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
