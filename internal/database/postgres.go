@@ -10,7 +10,9 @@ import (
 
 // NewPostgresDB inicializa y configura el pool de conexiones
 func NewPostgresDB(host, port, user, password, dbname string) (*sql.DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+	// Agregamos statement_cache_mode=describe o binary_parameters=no dependiendo del driver,
+	// pero para lib/pq con PgBouncer/Supabase la clave es connect_timeout=10
+	dsn := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable connect_timeout=10 binary_parameters=no",
 		host, port, user, password, dbname,
 	)
 
