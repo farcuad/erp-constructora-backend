@@ -35,7 +35,7 @@ func RequireActiveSubscription(svc SubscriptionService) func(http.Handler) http.
 
 			// UNA SOLA CONSULTA A LA BASE DE DATOS
 			info, err := svc.GetSubscriptionInfo(r.Context(), companyID)
-			if err != nil || info == nil || info.Status != "active" { // O la condición que defina si está activa
+			if err != nil || info == nil || info.Status != "active" && info.Status != "trial" { // O la condición que defina si está activa
 				http.Error(w, "Suscripción inactiva o expirada", http.StatusPaymentRequired)
 				return
 			}
