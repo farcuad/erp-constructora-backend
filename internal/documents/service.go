@@ -3,14 +3,23 @@ package documents
 import (
 	"context"
 	"errors"
+	"log"
+	"time"
 )
 
-type Service struct {
-	repo *Repository
+// DocumentIndexer indexa semánticamente (RAG) una versión de documento.
+type DocumentIndexer interface {
+	IndexDocument(ctx context.Context, companyID, docID, versionID, fileURL, fileExtension string) error
+	DeleteDocumentEmbeddings(ctx context.Context, companyID, docID string) error
 }
 
-func NewService(repo *Repository) *Service {
-	return &Service{repo: repo}
+type Service struct {
+	repo    *Repository
+	indexer DocumentIndexer
+}
+
+func NewService(repo *Repository, indexer DocumentIndexer) *Service {
+	return &Service{repo: repo, indexer: indexer}
 }
 
 func (s *Service) CreateDocumentType(ctx context.Context, t *DocumentType) error {
@@ -24,14 +33,42 @@ func (s *Service) UploadInitialDocument(ctx context.Context, doc *Document, ver 
 	if doc.ProjectID == "" || doc.DocumentTypeID == "" || doc.Title == "" || ver.FileURL == "" {
 		return errors.New("faltan campos obligatorios para registrar el documento")
 	}
-	return s.repo.CreateDocumentWithVersion(ctx, doc, ver)
+	if err := s.repo.CreateDocumentWithVersion(ctx, doc, ver); err != nil {
+		return err
+	}
+	s.indexInBackground(doc.CompanyID, doc.ID, ver.ID, ver.FileURL, ver.FileExtension)
+	return nil
 }
 
 func (s *Service) UploadNewVersion(ctx context.Context, ver *DocumentVersion) error {
 	if ver.DocumentID == "" || ver.FileURL == "" || ver.UserID == "" {
 		return errors.New("el id del documento y la url del archivo son obligatorios para una nueva versión")
 	}
-	return s.repo.AddNewVersion(ctx, ver)
+	if err := s.repo.AddNewVersion(ctx, ver); err != nil {
+		return err
+	}
+	s.indexInBackground(ver.CompanyID, ver.DocumentID, ver.ID, ver.FileURL, ver.FileExtension)
+	return nil
+}
+
+// indexInBackground delega el procesamiento RAG (parseo, troceo y embeddings)
+// a un goroutine para no bloquear la respuesta HTTP del POST.
+func (s *Service) indexInBackground(companyID, docID, versionID, fileURL, fileExtension string) {
+	if s.indexer == nil {
+		return
+	}
+	go func() {
+		idxCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+		defer cancel()
+
+		// Reemplaza embeddings de versiones anteriores del mismo documento
+		if err := s.indexer.DeleteDocumentEmbeddings(idxCtx, companyID, docID); err != nil {
+			log.Printf("[RAG] error limpiando embeddings del documento %s: %v", docID, err)
+		}
+		if err := s.indexer.IndexDocument(idxCtx, companyID, docID, versionID, fileURL, fileExtension); err != nil {
+			log.Printf("[RAG] error indexando documento %s (versión %s): %v", docID, versionID, err)
+		}
+	}()
 }
 
 func (s *Service) UpdateDocumentType(ctx context.Context, companyID, id string, req UpdateDocumentTypeRequest) error {
@@ -59,7 +96,17 @@ func (s *Service) DeleteDocument(ctx context.Context, companyID, id string) erro
 	if companyID == "" || id == "" {
 		return errors.New("el id de la empresa y del documento son requeridos")
 	}
-	return s.repo.DeleteDocument(ctx, companyID, id)
+	if err := s.repo.DeleteDocument(ctx, companyID, id); err != nil {
+		return err
+	}
+	if s.indexer != nil {
+		// La FK document_embeddings.document_id es ON DELETE CASCADE, pero
+		// limpiamos también por si el borrado dejara huérfanos.
+		if err := s.indexer.DeleteDocumentEmbeddings(ctx, companyID, id); err != nil {
+			log.Printf("[RAG] error limpiando embeddings del documento %s: %v", id, err)
+		}
+	}
+	return nil
 }
 
 func (s *Service) GetDocumentTypes(ctx context.Context, companyID string) ([]DocumentType, error) {

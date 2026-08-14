@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"net/http"
+	"os"
 
 	"erp-constructora/internal/attendance"
 	audit "erp-constructora/internal/audit_logs"
@@ -22,6 +23,8 @@ import (
 	"erp-constructora/internal/progress"
 	"erp-constructora/internal/project"
 	"erp-constructora/internal/purchase"
+	"erp-constructora/internal/rag"
+	"erp-constructora/internal/rag/worker"
 	schedule "erp-constructora/internal/shedule"
 	"erp-constructora/internal/subscriptions"
 	"erp-constructora/internal/superadmin"
@@ -111,8 +114,16 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	dashboardService := financialdashboard.NewService(dashboardRepository)
 	dashboardHandler := financialdashboard.NewHandler(dashboardService)
 
+	openAIKey := os.Getenv("OPENAI_API_KEY")
+	chatModel := os.Getenv("OPENAI_CHAT_MODEL")
+
+	ragEmbedder := worker.NewOpenAIEmbedder(openAIKey)
+	ragRepository := rag.NewRepository(db)
+	ragService := rag.NewService(ragRepository, ragEmbedder, openAIKey, chatModel)
+	ragHandler := rag.NewHandler(ragService)
+
 	documentsRepository := documents.NewRepository(db)
-	documentsService := documents.NewService(documentsRepository)
+	documentsService := documents.NewService(documentsRepository, ragService)
 	documentsHandler := documents.NewHandler(documentsService)
 
 	notificationsRepository := notifications.NewRepository(db)
@@ -316,6 +327,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	// --- Audit Logs ---
 	mux.Handle("POST /audits-logs", protectedBasic(allRoles, auditLogsHandler.CreateLog))
 	mux.Handle("GET /audits-logs", protectedBasic(allRoles, auditLogsHandler.GetCompanyLogs))
+	mux.Handle("POST /rag/chat", protected(siteRoles, ragHandler.HandleChat))
 
 	// --- Subscriptions ---
 	mux.Handle("GET /subscriptions/me", chain(http.HandlerFunc(subscriptionHandler.GetMySubscription), auth))
