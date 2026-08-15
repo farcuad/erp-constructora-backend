@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"erp-constructora/internal/app"
 	"erp-constructora/internal/attendance"
 	audit "erp-constructora/internal/audit_logs"
 	"erp-constructora/internal/budgets"
@@ -113,6 +114,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	dashboardRepository := financialdashboard.NewRepository(db)
 	dashboardService := financialdashboard.NewService(dashboardRepository)
 	dashboardHandler := financialdashboard.NewHandler(dashboardService)
+
+	appRepo := app.NewRepository(db)
+	appService := app.NewService(appRepo)
+	appHandler := app.NewHandler(appService)
 
 	openAIKey := os.Getenv("OPENAI_API_KEY")
 	chatModel := os.Getenv("OPENAI_CHAT_MODEL")
@@ -328,6 +333,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("POST /audits-logs", protectedBasic(allRoles, auditLogsHandler.CreateLog))
 	mux.Handle("GET /audits-logs", protectedBasic(allRoles, auditLogsHandler.GetCompanyLogs))
 	mux.Handle("POST /rag/chat", protected(siteRoles, ragHandler.HandleChat))
+
+	// --- App Releases (protegidas por API key, no por JWT) ---
+	mux.Handle("POST /app/releases", chain(http.HandlerFunc(appHandler.PublishRelease), middlewares.RequireAPIKey))
+	mux.Handle("GET /app/latest", chain(http.HandlerFunc(appHandler.GetLatestRelease), middlewares.RequireAPIKey))
 
 	// --- Subscriptions ---
 	mux.Handle("GET /subscriptions/me", chain(http.HandlerFunc(subscriptionHandler.GetMySubscription), auth))
