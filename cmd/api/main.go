@@ -39,20 +39,43 @@ func enableCORS(next http.Handler) http.Handler {
 	})
 }
 
+// statusRecorder captura el código HTTP que escribe el handler real,
+// para que loggerAndRecovery solo registre las respuestas de error.
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *statusRecorder) Write(b []byte) (int, error) {
+	if s.status == 0 {
+		s.status = http.StatusOK
+	}
+	return s.ResponseWriter.Write(b)
+}
+
 func loggerAndRecovery(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
+		rec := &statusRecorder{ResponseWriter: w}
 
 		defer func() {
 			if err := recover(); err != nil {
 				log.Printf("[PANIC CRITICAL] %s %s | Error: %v", r.Method, r.URL.Path, err)
 				http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+				return
+			}
+			// Solo se registra cuando la llamada falló (4xx/5xx), nunca en éxito.
+			if rec.status >= 400 {
+				log.Printf("[ERROR] %s %s - status %d - %v", r.Method, r.URL.Path, rec.status, time.Since(start))
 			}
 		}()
 
-		log.Printf("[REQ] %s %s", r.Method, r.URL.Path)
-		next.ServeHTTP(w, r)
-		log.Printf("[RES] %s %s - %v", r.Method, r.URL.Path, time.Since(start))
+		next.ServeHTTP(rec, r)
 	})
 }
 

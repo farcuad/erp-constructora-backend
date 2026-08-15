@@ -16,13 +16,27 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) CreateReport(ctx context.Context, report *DailyReport) error {
+// ExecInTx helper para ejecutar lógica dentro de una transacción de forma segura
+func (r *Repository) ExecInTx(ctx context.Context, fn func(*sql.Tx) error) error {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback() // Se descarta automáticamente si no hay Commit
+
+	if err := fn(tx); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func (r *Repository) CreateReportTx(ctx context.Context, tx *sql.Tx, report *DailyReport) error {
 	query := `
 		INSERT INTO daily_reports (company_id, project_id, user_id, report_date, weather_condition, observations)
 		VALUES ($1, $2, $3, $4, $5, $6)
 		RETURNING id, created_at`
 
-	return r.db.QueryRowContext(ctx, query,
+	return tx.QueryRowContext(ctx, query,
 		report.CompanyID,
 		report.ProjectID,
 		report.UserID,
@@ -32,13 +46,13 @@ func (r *Repository) CreateReport(ctx context.Context, report *DailyReport) erro
 	).Scan(&report.ID, &report.CreatedAt)
 }
 
-func (r *Repository) CreateProgressEntry(ctx context.Context, entry *ProgressEntry) error {
+func (r *Repository) CreateProgressEntryTx(ctx context.Context, tx *sql.Tx, entry *ProgressEntry) error {
 	query := `
 		INSERT INTO progress_entries (company_id, project_id, daily_report_id, task_id, progress_percentage, quantity_executed, notes)
 		VALUES ($1, $2, $3, $4, $5, $6, $7)
 		RETURNING id`
 
-	return r.db.QueryRowContext(ctx, query,
+	return tx.QueryRowContext(ctx, query,
 		entry.CompanyID,
 		entry.ProjectID,
 		entry.DailyReportID,
@@ -47,6 +61,68 @@ func (r *Repository) CreateProgressEntry(ctx context.Context, entry *ProgressEnt
 		entry.QuantityExecuted,
 		entry.Notes,
 	).Scan(&entry.ID)
+}
+
+// ApplyTaskProgressTx refleja el avance acumulado de una tarea en la tabla tasks.
+// El progreso nunca baja (GREATEST) y el estado se deriva automáticamente.
+func (r *Repository) ApplyTaskProgressTx(ctx context.Context, tx *sql.Tx, taskID string, newProgress float64) error {
+	query := `
+		UPDATE tasks SET
+			progress = GREATEST(progress, $1),
+			status = CASE
+				WHEN GREATEST(progress, $1) >= 100 THEN 'Done'
+				WHEN GREATEST(progress, $1) > 0 THEN 'In Progress'
+				ELSE 'To Do'
+			END,
+			updated_at = CURRENT_TIMESTAMP
+		WHERE id = $2`
+
+	_, err := tx.ExecContext(ctx, query, newProgress, taskID)
+	return err
+}
+
+// GetReportTaskIDs obtiene las tareas asociadas a un reporte (antes de borrarlo,
+// porque el DELETE propaga en cascada a progress_entries).
+func (r *Repository) GetReportTaskIDs(ctx context.Context, tx *sql.Tx, reportID string) ([]string, error) {
+	query := `SELECT DISTINCT task_id FROM progress_entries WHERE daily_report_id = $1`
+
+	rows, err := tx.QueryContext(ctx, query, reportID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+// RecalcTaskProgressTx recalcula el progreso de una tarea a partir de los
+// progress_entries restantes (máximo acumulado), ya aplicado el borrado del reporte.
+func (r *Repository) RecalcTaskProgressTx(ctx context.Context, tx *sql.Tx, taskID string) error {
+	query := `
+		WITH cur AS (
+			SELECT COALESCE(MAX(progress_percentage), 0) AS p
+			FROM progress_entries WHERE task_id = $1
+		)
+		UPDATE tasks t SET
+			progress = cur.p,
+			status = CASE
+				WHEN cur.p >= 100 THEN 'Done'
+				WHEN cur.p > 0 THEN 'In Progress'
+				ELSE 'To Do'
+			END,
+			updated_at = CURRENT_TIMESTAMP
+		FROM cur WHERE t.id = $1`
+
+	_, err := tx.ExecContext(ctx, query, taskID)
+	return err
 }
 
 func (r *Repository) GetReportWithProgress(ctx context.Context, companyID, projectID string, date string) (*DailyReport, error) {
@@ -154,8 +230,8 @@ func (r *Repository) UpdateReport(ctx context.Context, companyID, id string, req
 	return err
 }
 
-func (r *Repository) DeleteReport(ctx context.Context, companyID, id string) error {
+func (r *Repository) DeleteReportTx(ctx context.Context, tx *sql.Tx, companyID, id string) error {
 	query := `DELETE FROM daily_reports WHERE company_id = $1 AND id = $2`
-	_, err := r.db.ExecContext(ctx, query, companyID, id)
+	_, err := tx.ExecContext(ctx, query, companyID, id)
 	return err
 }

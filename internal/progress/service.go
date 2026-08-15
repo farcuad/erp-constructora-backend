@@ -2,6 +2,7 @@ package progress
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 )
 
@@ -14,24 +15,28 @@ func NewService(repo *Repository) *Service {
 }
 
 func (s *Service) SaveDailyProgress(ctx context.Context, report *DailyReport) error {
-	// Aquí podrías iniciar una transacción (tx) si deseas asegurar consistencia absoluta
-	err := s.repo.CreateReport(ctx, report)
-	if err != nil {
-		return err
-	}
-
-	for i := range report.ProgressEntries {
-		report.ProgressEntries[i].DailyReportID = report.ID
-		report.ProgressEntries[i].CompanyID = report.CompanyID
-		report.ProgressEntries[i].ProjectID = report.ProjectID
-
-		err = s.repo.CreateProgressEntry(ctx, &report.ProgressEntries[i])
-		if err != nil {
+	return s.repo.ExecInTx(ctx, func(tx *sql.Tx) error {
+		if err := s.repo.CreateReportTx(ctx, tx, report); err != nil {
 			return err
 		}
-	}
 
-	return nil
+		for i := range report.ProgressEntries {
+			report.ProgressEntries[i].DailyReportID = report.ID
+			report.ProgressEntries[i].CompanyID = report.CompanyID
+			report.ProgressEntries[i].ProjectID = report.ProjectID
+
+			err := s.repo.CreateProgressEntryTx(ctx, tx, &report.ProgressEntries[i])
+			if err != nil {
+				return err
+			}
+
+			if err := s.repo.ApplyTaskProgressTx(ctx, tx, report.ProgressEntries[i].TaskID, report.ProgressEntries[i].ProgressPercentage); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
 
 func (s *Service) GetDailyReport(ctx context.Context, companyID, projectID, date string) (*DailyReport, error) {
@@ -57,5 +62,23 @@ func (s *Service) DeleteDailyReport(ctx context.Context, companyID, id string) e
 	if companyID == "" || id == "" {
 		return errors.New("el id de la empresa y del reporte son requeridos")
 	}
-	return s.repo.DeleteReport(ctx, companyID, id)
+
+	return s.repo.ExecInTx(ctx, func(tx *sql.Tx) error {
+		taskIDs, err := s.repo.GetReportTaskIDs(ctx, tx, id)
+		if err != nil {
+			return err
+		}
+
+		if err := s.repo.DeleteReportTx(ctx, tx, companyID, id); err != nil {
+			return err
+		}
+
+		for _, taskID := range taskIDs {
+			if err := s.repo.RecalcTaskProgressTx(ctx, tx, taskID); err != nil {
+				return err
+			}
+		}
+
+		return nil
+	})
 }
