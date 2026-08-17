@@ -13,4 +13,4 @@ require github.com/gorilla/websocket v1.5.3
 
 require github.com/pgvector/pgvector-go v0.4.1
 
-require github.com/nguyenthenguyen/docx v0.0.0-20230621112118-9c8e795a11db // indirect
+require github.com/nguyenthenguyen/docx v0.0.0-20230621112118-9c8e795a11db 
