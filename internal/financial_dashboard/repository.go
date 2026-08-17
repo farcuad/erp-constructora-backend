@@ -49,3 +49,41 @@ func (r *Repository) GetProjectFinancialSummary(ctx context.Context, companyID, 
 
 	return &kpi, nil
 }
+
+func (r *Repository) GetMonthlyTrends(ctx context.Context, companyID, projectID string) ([]MonthlyData, error) {
+	query := `
+		SELECT 
+			TO_CHAR(date_series, 'Mon') as month,
+			COALESCE(SUM(i.total_amount), 0.00) as invoiced,
+			COALESCE(SUM(p.amount), 0.00) as collected,
+			COALESCE(SUM(e.amount), 0.00) as expenses
+		FROM generate_series(
+			DATE_TRUNC('month', CURRENT_DATE - INTERVAL '5 months'),
+			DATE_TRUNC('month', CURRENT_DATE),
+			'1 month'::interval
+		) date_series
+		LEFT JOIN invoices i ON DATE_TRUNC('month', i.created_at) = date_series 
+			AND i.project_id = $2::UUID AND i.company_id = $1::UUID AND i.type = 'EMITTED'
+		LEFT JOIN payments p ON DATE_TRUNC('month', p.created_at) = date_series 
+			AND p.invoice_id = i.id
+		LEFT JOIN expenses e ON DATE_TRUNC('month', e.created_at) = date_series 
+			AND e.project_id = $2::UUID AND e.company_id = $1::UUID
+		GROUP BY date_series
+		ORDER BY date_series ASC;
+	`
+	rows, err := r.db.QueryContext(ctx, query, companyID, projectID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var trends []MonthlyData
+	for rows.Next() {
+		var m MonthlyData
+		if err := rows.Scan(&m.Month, &m.Invoiced, &m.Collected, &m.Expenses); err != nil {
+			return nil, err
+		}
+		trends = append(trends, m)
+	}
+	return trends, nil
+}
