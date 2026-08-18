@@ -1,18 +1,37 @@
 package documents
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service *Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  *Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] documents: %v", err)
+	}
 }
 
 func (h *Handler) CreateType(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +52,15 @@ func (h *Handler) CreateType(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DOCUMENT_TYPE",
+		EntityID:   &t.ID,
+		Type:       "DOCUMENT_TYPE_CREATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Nuevo tipo de documento",
+		Message:    fmt.Sprintf("Se creó el tipo de documento: %s.", t.Name),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -87,6 +115,17 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &doc.ProjectID,
+		EntityType: "DOCUMENT",
+		EntityID:   &doc.ID,
+		Type:       "DOCUMENT_CREATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nuevo documento",
+		Message:    fmt.Sprintf("Se añadió el documento: %s.", doc.Title),
+		LinkToUI:   strPtr("/dashboard/projects/" + doc.ProjectID + "/documents"),
+	})
+
 	// Adjuntamos la versión creada al objeto de respuesta
 	doc.Versions = append(doc.Versions, ver)
 
@@ -115,6 +154,15 @@ func (h *Handler) UpdateVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DOCUMENT_VERSION",
+		EntityID:   &ver.ID,
+		Type:       "DOCUMENT_VERSION_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nueva versión de documento",
+		Message:    "Se subió una nueva versión de un documento.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -145,6 +193,15 @@ func (h *Handler) UpdateDocumentType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DOCUMENT_TYPE",
+		EntityID:   &id,
+		Type:       "DOCUMENT_TYPE_UPDATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Tipo de documento actualizado",
+		Message:    "Se actualizó un tipo de documento.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Tipo de documento actualizado"})
 }
@@ -166,6 +223,15 @@ func (h *Handler) DeleteDocumentType(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DOCUMENT_TYPE",
+		EntityID:   &id,
+		Type:       "DOCUMENT_TYPE_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Tipo de documento eliminado",
+		Message:    "Se eliminó un tipo de documento.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Tipo de documento eliminado"})
@@ -194,6 +260,15 @@ func (h *Handler) UpdateDocument(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DOCUMENT",
+		EntityID:   &id,
+		Type:       "DOCUMENT_UPDATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Documento actualizado",
+		Message:    "Se actualizó un documento.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Documento actualizado"})
@@ -302,6 +377,15 @@ func (h *Handler) DeleteDocument(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DOCUMENT",
+		EntityID:   &id,
+		Type:       "DOCUMENT_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Documento eliminado",
+		Message:    "Se eliminó un documento.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Documento eliminado"})

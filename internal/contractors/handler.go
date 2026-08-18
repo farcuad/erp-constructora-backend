@@ -1,18 +1,37 @@
 package contractors
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service *Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  *Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] contractors: %v", err)
+	}
 }
 
 func (h *Handler) CreateContractor(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +52,15 @@ func (h *Handler) CreateContractor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "CONTRACTOR",
+		EntityID:   &c.ID,
+		Type:       "CONTRACTOR_CREATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nuevo contratista",
+		Message:    fmt.Sprintf("Se registró el contratista: %s.", c.Name),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -58,6 +86,17 @@ func (h *Handler) CreateContract(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &cc.ProjectID,
+		EntityType: "CONTRACTOR_CONTRACT",
+		EntityID:   &cc.ID,
+		Type:       "CONTRACTOR_CONTRACT_CREATED",
+		Priority:   notifications.PriorityHigh,
+		Title:      "Nuevo contrato de contratista",
+		Message:    fmt.Sprintf("Se creó un contrato de contratista por $%.2f.", cc.TotalAmount),
+		LinkToUI:   strPtr("/dashboard/projects/" + cc.ProjectID + "/contractors"),
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(cc)
@@ -81,6 +120,15 @@ func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "CONTRACTOR_PAYMENT",
+		EntityID:   &p.ID,
+		Type:       "CONTRACTOR_PAYMENT_CREATED",
+		Priority:   notifications.PriorityHigh,
+		Title:      "Nuevo pago a contratista",
+		Message:    fmt.Sprintf("Se registró un pago a contratista de $%.2f.", p.Amount),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -168,6 +216,15 @@ func (h *Handler) UpdateContractor(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "CONTRACTOR",
+		EntityID:   &id,
+		Type:       "CONTRACTOR_UPDATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Contratista actualizado",
+		Message:    fmt.Sprintf("Se actualizó el contratista: %s.", c.Name),
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(c)
 }
@@ -189,6 +246,15 @@ func (h *Handler) DeleteContractor(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "CONTRACTOR",
+		EntityID:   &id,
+		Type:       "CONTRACTOR_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Contratista eliminado",
+		Message:    "Se eliminó un contratista.",
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -228,6 +294,16 @@ func (h *Handler) UpdateContractorContract(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &cc.ProjectID,
+		EntityType: "CONTRACTOR_CONTRACT",
+		EntityID:   &id,
+		Type:       "CONTRACTOR_CONTRACT_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Contrato de contratista actualizado",
+		Message:    "Se actualizó un contrato de contratista.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(cc)
 }
@@ -249,6 +325,15 @@ func (h *Handler) DeleteContractorContract(w http.ResponseWriter, r *http.Reques
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "CONTRACTOR_CONTRACT",
+		EntityID:   &id,
+		Type:       "CONTRACTOR_CONTRACT_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Contrato de contratista eliminado",
+		Message:    "Se eliminó un contrato de contratista.",
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

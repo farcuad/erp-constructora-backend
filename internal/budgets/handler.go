@@ -1,18 +1,37 @@
 package budgets
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] budgets: %v", err)
+	}
 }
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
@@ -39,6 +58,17 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &budget.ProjectID,
+		EntityType: "BUDGET",
+		EntityID:   &budget.ID,
+		Type:       "BUDGET_CREATED",
+		Priority:   notifications.PriorityHigh,
+		Title:      "Nuevo presupuesto",
+		Message:    fmt.Sprintf("Se creó el presupuesto: %s.", budget.Title),
+		LinkToUI:   strPtr("/dashboard/projects/" + budget.ProjectID + "/budgets"),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -70,6 +100,15 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "BUDGET",
+		EntityID:   &id,
+		Type:       "BUDGET_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Presupuesto actualizado",
+		Message:    "Se actualizó un presupuesto del proyecto.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(budget)
 }
@@ -92,6 +131,15 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "BUDGET",
+		EntityID:   &id,
+		Type:       "BUDGET_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Presupuesto eliminado",
+		Message:    "Se eliminó un presupuesto del proyecto.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)

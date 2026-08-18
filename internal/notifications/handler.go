@@ -53,31 +53,6 @@ func (h *Handler) HandleWS(w http.ResponseWriter, r *http.Request) {
 	}()
 }
 
-func (h *Handler) CreateNotifications(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
-	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
-		return
-	}
-
-	var req CreateNotificationRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
-		return
-	}
-
-	notification, err := h.service.DispatchNotification(r.Context(), req, companyID)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(notification)
-}
-
-// GetMyNotifications responde con la bandeja de entrada del usuario autenticado
 func (h *Handler) GetMyNotifications(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())

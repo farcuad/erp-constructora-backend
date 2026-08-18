@@ -1,20 +1,38 @@
 package progress
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service *Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  *Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] progress: %v", err)
+	}
 }
 
 func (h *Handler) CreateDailyReport(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +66,16 @@ func (h *Handler) CreateDailyReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &report.ProjectID,
+		EntityType: "DAILY_REPORT",
+		Type:       "REPORT_CREATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nuevo reporte diario de obra",
+		Message:    "Se registró un nuevo reporte diario de obra.",
+		LinkToUI:   strPtr("/dashboard/projects/" + report.ProjectID + "/progress"),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -109,6 +137,15 @@ func (h *Handler) UpdateDailyReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DAILY_REPORT",
+		EntityID:   &id,
+		Type:       "REPORT_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Reporte diario actualizado",
+		Message:    "Se actualizó un reporte diario de obra.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Reporte diario actualizado"})
 }
@@ -130,6 +167,15 @@ func (h *Handler) DeleteDailyReport(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "DAILY_REPORT",
+		EntityID:   &id,
+		Type:       "REPORT_DELETED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Reporte diario eliminado",
+		Message:    "Se eliminó un reporte diario de obra.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "Reporte diario eliminado"})

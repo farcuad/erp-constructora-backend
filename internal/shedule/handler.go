@@ -1,16 +1,32 @@
 package schedule
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+
+	"erp-constructora/internal/notifications"
 )
 
 type Handler struct {
-	service *Service
+	service  *Service
+	notifier notifications.Notifier
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] schedule: %v", err)
+	}
 }
 
 func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
@@ -24,6 +40,17 @@ func (h *Handler) CreateTask(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &t.ProjectID,
+		EntityType: "SCHEDULE_TASK",
+		EntityID:   &t.ID,
+		Type:       "TASK_CREATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nueva tarea añadida",
+		Message:    fmt.Sprintf("Se añadió una nueva tarea: %s, revisa las nuevas tareas.", t.Name),
+		LinkToUI:   strPtr("/dashboard/projects/" + t.ProjectID + "/schedule"),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -67,6 +94,17 @@ func (h *Handler) UpdateTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &t.ProjectID,
+		EntityType: "SCHEDULE_TASK",
+		EntityID:   &t.ID,
+		Type:       "TASK_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Tarea actualizada",
+		Message:    fmt.Sprintf("Se actualizó la tarea: %s.", t.Name),
+		LinkToUI:   strPtr("/dashboard/projects/" + t.ProjectID + "/schedule"),
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(t)
 }
@@ -83,5 +121,19 @@ func (h *Handler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "SCHEDULE_TASK",
+		EntityID:   &id,
+		Type:       "TASK_DELETED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Tarea eliminada",
+		Message:    "Se eliminó una tarea del cronograma.",
+	})
+
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// strPtr devuelve un puntero al string, útil para los campos *string del payload de notificación
+func strPtr(s string) *string {
+	return &s
 }

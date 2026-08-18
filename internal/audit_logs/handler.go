@@ -1,19 +1,34 @@
 package audit
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 	"strings"
 
+	"erp-constructora/internal/notifications"
 	"erp-constructora/internal/users"
 )
 
 type Handler struct {
-	service *Service
+	service  *Service
+	notifier notifications.Notifier
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] audit_logs: %v", err)
+	}
 }
 
 // helper para extraer la IP real del cliente detrás de proxies comunes (como Supabase/Cloudflare)
@@ -74,6 +89,14 @@ func (h *Handler) CreateLog(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "AUDIT_LOG",
+		Type:       req.Action,
+		Priority:   notifications.PriorityLow,
+		Title:      "Nueva actividad registrada",
+		Message:    fmt.Sprintf("Se registró una actividad: %s en %s.", req.Action, req.TableName),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)

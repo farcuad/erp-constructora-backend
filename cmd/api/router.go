@@ -48,6 +48,13 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	userService := users.NewService(userRepo)
 	userHandler := users.NewHandler(userService)
 
+	notificationsRepository := notifications.NewRepository(db)
+	notificationsHub := notifications.NewWSHub()
+
+	// Inyectamos el Hub tanto al Service (para enviar eventos) como al Handler (para la conexión WS)
+	notificationsService := notifications.NewService(notificationsRepository, notificationsHub)
+	notificationsHandler := notifications.NewHandler(notificationsService, notificationsHub)
+
 	subscriptionRepo := subscriptions.NewRepository(db)
 	subscriptionService := subscriptions.NewService(subscriptionRepo)
 
@@ -61,15 +68,15 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	budgetRepo := budgets.NewRepository(db)
 	budgetService := budgets.NewService(budgetRepo)
-	budgetHandler := budgets.NewHandler(budgetService)
+	budgetHandler := budgets.NewHandler(budgetService, notificationsService)
 
 	expenseRepo := expense.NewRepository(db)
 	expenseService := expense.NewService(expenseRepo)
-	expenseHandler := expense.NewHandler(expenseService)
+	expenseHandler := expense.NewHandler(expenseService, notificationsService)
 
 	purchaseRepo := purchase.NewRepository(db)
 	purchaseService := purchase.NewService(purchaseRepo)
-	purcharseHandler := purchase.NewHandler(purchaseService)
+	purcharseHandler := purchase.NewHandler(purchaseService, notificationsService)
 
 	supplierRepo := suppliers.NewRepository(db)
 	suppilerService := suppliers.NewService(supplierRepo)
@@ -81,7 +88,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	equipementRepository := equipement.NewRepository(db)
 	equipementService := equipement.NewService(equipementRepository)
-	equipementHandler := equipement.NewHandler(equipementService)
+	equipementHandler := equipement.NewHandler(equipementService, notificationsService)
 
 	personnelRespository := personnel.NewRepository(db)
 	personnelService := personnel.NewService(personnelRespository)
@@ -89,19 +96,19 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	attendanceRepositoy := attendance.NewRepository(db)
 	attendanceService := attendance.NewService(attendanceRepositoy)
-	attendanceHandler := attendance.NewHandler(attendanceService)
+	attendanceHandler := attendance.NewHandler(attendanceService, notificationsService)
 
 	contractorsRepository := contractors.NewRepository(db)
 	contractorsService := contractors.NewService(contractorsRepository)
-	contractorsHandler := contractors.NewHandler(contractorsService)
+	contractorsHandler := contractors.NewHandler(contractorsService, notificationsService)
 
 	sheduleRepository := schedule.NewRepository(db)
 	sheduleService := schedule.NewService(sheduleRepository)
-	sheduleHandler := schedule.NewHandler(sheduleService)
+	sheduleHandler := schedule.NewHandler(sheduleService, notificationsService)
 
 	progressRepository := progress.NewRepository(db)
 	progressService := progress.NewService(progressRepository)
-	progressHandler := progress.NewHandler(progressService)
+	progressHandler := progress.NewHandler(progressService, notificationsService)
 
 	photosRepository := photos.NewRepository(db)
 	photosService := photos.NewService(photosRepository)
@@ -109,7 +116,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	paymentRepository := payments.NewRepository(db)
 	paymentService := payments.NewService(paymentRepository)
-	paymentHandler := payments.NewHandler(paymentService)
+	paymentHandler := payments.NewHandler(paymentService, notificationsService)
 
 	dashboardRepository := financialdashboard.NewRepository(db)
 	dashboardService := financialdashboard.NewService(dashboardRepository)
@@ -129,18 +136,11 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	documentsRepository := documents.NewRepository(db)
 	documentsService := documents.NewService(documentsRepository, ragService)
-	documentsHandler := documents.NewHandler(documentsService)
-
-	notificationsRepository := notifications.NewRepository(db)
-	notificationsHub := notifications.NewWSHub()
-
-	// 2. Inyectamos el Hub tanto al Service (para enviar eventos) como al Handler (para la conexión WS)
-	notificationsService := notifications.NewService(notificationsRepository, notificationsHub)
-	notificationsHandler := notifications.NewHandler(notificationsService, notificationsHub)
+	documentsHandler := documents.NewHandler(documentsService, notificationsService)
 
 	auditLogsRepository := audit.NewRepository(db)
 	auditLogsService := audit.NewService(auditLogsRepository)
-	auditLogsHandler := audit.NewHandler(auditLogsService)
+	auditLogsHandler := audit.NewHandler(auditLogsService, notificationsService)
 
 	subscriptionHandler := subscriptions.NewHandler(subscriptionService)
 
@@ -324,7 +324,6 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	// --- Notifications ---
 	mux.Handle("GET /notifications/ws", protectedBasic(allRoles, notificationsHandler.HandleWS))
-	mux.Handle("POST /notifications", protectedBasic(managerRoles, notificationsHandler.CreateNotifications))
 	mux.Handle("GET /notifications", protectedBasic(allRoles, notificationsHandler.GetMyNotifications))
 	mux.Handle("PATCH /notifications/{notification_id}/read", protectedBasic(allRoles, notificationsHandler.MarkRead))
 	mux.Handle("DELETE /notifications/{notification_id}", protectedBasic(managerRoles, notificationsHandler.DeleteNotification))

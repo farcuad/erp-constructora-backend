@@ -1,18 +1,37 @@
 package purchase
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service *Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  *Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] purchase: %v", err)
+	}
 }
 
 // --- CONTROLADORES DE ÓRDENES DE COMPRA ---
@@ -41,6 +60,17 @@ func (h *Handler) CreatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &po.ProjectID,
+		EntityType: "PURCHASE_ORDER",
+		EntityID:   &po.ID,
+		Type:       "PURCHASE_ORDER_CREATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nueva orden de compra",
+		Message:    fmt.Sprintf("Se creó una orden de compra por $%.2f.", po.TotalAmount),
+		LinkToUI:   strPtr("/dashboard/projects/" + po.ProjectID + "/purchase"),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -90,6 +120,15 @@ func (h *Handler) UpdatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "PURCHASE_ORDER",
+		EntityID:   &id,
+		Type:       "PURCHASE_ORDER_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Orden de compra actualizada",
+		Message:    "Se actualizó una orden de compra.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(po)
 }
@@ -111,6 +150,15 @@ func (h *Handler) DeletePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "PURCHASE_ORDER",
+		EntityID:   &id,
+		Type:       "PURCHASE_ORDER_DELETED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Orden de compra eliminada",
+		Message:    "Se eliminó una orden de compra.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "recurso eliminado"})

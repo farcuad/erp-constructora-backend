@@ -1,18 +1,37 @@
 package equipement
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service *Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  *Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] equipement: %v", err)
+	}
 }
 
 func (h *Handler) CreateEquipment(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +52,15 @@ func (h *Handler) CreateEquipment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT",
+		EntityID:   &eq.ID,
+		Type:       "EQUIPMENT_CREATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Nuevo equipo registrado",
+		Message:    fmt.Sprintf("Se registró un nuevo equipo: %s.", eq.Name),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -75,6 +103,16 @@ func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &assign.ProjectID,
+		EntityType: "EQUIPMENT_ASSIGNMENT",
+		EntityID:   &assign.ID,
+		Type:       "EQUIPMENT_ASSIGNED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Equipo asignado a obra",
+		Message:    "Se asignó un equipo a una obra.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(assign)
@@ -109,6 +147,15 @@ func (h *Handler) Maintenance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT_MAINTENANCE",
+		EntityID:   &m.ID,
+		Type:       "EQUIPMENT_MAINTENANCE_REGISTERED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Mantenimiento registrado",
+		Message:    fmt.Sprintf("Se registró un mantenimiento (%s) por $%.2f.", m.MaintenanceType, m.Cost),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -158,6 +205,15 @@ func (h *Handler) UpdateEquipment(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT",
+		EntityID:   &id,
+		Type:       "EQUIPMENT_UPDATED",
+		Priority:   notifications.PriorityMedium,
+		Title:      "Equipo actualizado",
+		Message:    "Se actualizó un equipo.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(e)
 }
@@ -179,6 +235,15 @@ func (h *Handler) DeleteEquipment(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT",
+		EntityID:   &id,
+		Type:       "EQUIPMENT_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Equipo eliminado",
+		Message:    "Se eliminó un equipo.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "recurso eliminado"})
@@ -221,6 +286,15 @@ func (h *Handler) CreateEquipmentType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT_TYPE",
+		EntityID:   &eq.ID,
+		Type:       "EQUIPMENT_TYPE_CREATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Nuevo tipo de equipo",
+		Message:    fmt.Sprintf("Se creó el tipo de equipo: %s.", eq.Name),
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(eq)
@@ -251,6 +325,15 @@ func (h *Handler) UpdateEquipmentType(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT_TYPE",
+		EntityID:   &id,
+		Type:       "EQUIPMENT_TYPE_UPDATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Tipo de equipo actualizado",
+		Message:    "Se actualizó un tipo de equipo.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(et)
 }
@@ -272,6 +355,15 @@ func (h *Handler) DeleteEquipmentType(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "EQUIPMENT_TYPE",
+		EntityID:   &id,
+		Type:       "EQUIPMENT_TYPE_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Tipo de equipo eliminado",
+		Message:    "Se eliminó un tipo de equipo.",
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"message": "recurso eliminado"})

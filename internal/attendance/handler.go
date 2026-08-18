@@ -1,18 +1,36 @@
 package attendance
 
 import (
+	"context"
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
 )
 
-type Handler struct {
-	service *Service
+func strPtr(s string) *string {
+	return &s
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+type Handler struct {
+	service  *Service
+	notifier notifications.Notifier
+}
+
+func NewHandler(service *Service, notifier notifications.Notifier) *Handler {
+	return &Handler{service: service, notifier: notifier}
+}
+
+// notify emite una notificación a toda la empresa (el actor queda excluido por NotifyFromContext)
+func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificationRequest) {
+	if h.notifier == nil {
+		return
+	}
+	if err := h.notifier.NotifyFromContext(ctx, req); err != nil {
+		log.Printf("[NOTIFY ERROR] attendance: %v", err)
+	}
 }
 
 func (h *Handler) SaveAttendance(w http.ResponseWriter, r *http.Request) {
@@ -33,6 +51,16 @@ func (h *Handler) SaveAttendance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		ProjectID:  &att.ProjectID,
+		EntityType: "ATTENDANCE",
+		Type:       "ATTENDANCE_SAVED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Asistencia registrada",
+		Message:    "Se registró la asistencia del personal de la obra.",
+		LinkToUI:   strPtr("/dashboard/projects/" + att.ProjectID + "/attendance"),
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -93,6 +121,15 @@ func (h *Handler) UpdateAttendanceLog(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "ATTENDANCE_LOG",
+		EntityID:   &id,
+		Type:       "ATTENDANCE_UPDATED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Registro de asistencia actualizado",
+		Message:    "Se actualizó un registro de asistencia.",
+	})
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(log)
 }
@@ -114,6 +151,15 @@ func (h *Handler) DeleteAttendance(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+
+	h.notify(r.Context(), notifications.CreateNotificationRequest{
+		EntityType: "ATTENDANCE",
+		EntityID:   &id,
+		Type:       "ATTENDANCE_DELETED",
+		Priority:   notifications.PriorityLow,
+		Title:      "Asistencia eliminada",
+		Message:    "Se eliminó un registro de asistencia.",
+	})
 
 	w.WriteHeader(http.StatusNoContent)
 }

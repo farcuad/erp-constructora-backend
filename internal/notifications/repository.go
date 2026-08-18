@@ -18,6 +18,35 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
+// GetUserIDsByCompany trae los IDs de todos los usuarios activos de la empresa para broadcasting
+func (r *Repository) GetUserIDsByCompany(ctx context.Context, companyID string) ([]string, error) {
+	query := `SELECT id FROM users WHERE company_id = $1 AND is_active = TRUE`
+
+	rows, err := r.db.QueryContext(ctx, query, companyID)
+	if err != nil {
+		log.Printf("[DB QUERY ERROR] notifications.GetUserIDsByCompany (company_id=%s): %v", companyID, err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	ids := make([]string, 0)
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			log.Printf("[DB SCAN ERROR] notifications.GetUserIDsByCompany (company_id=%s): %v", companyID, err)
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] notifications.GetUserIDsByCompany (company_id=%s): %v", companyID, err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
+
+	return ids, nil
+}
+
 // ExecInTx helper para ejecutar lógica dentro de una transacción de forma segura
 func (r *Repository) ExecInTx(ctx context.Context, fn func(*sql.Tx) error) error {
 	tx, err := r.db.BeginTx(ctx, nil)

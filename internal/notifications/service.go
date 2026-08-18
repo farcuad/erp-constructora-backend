@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+
+	"erp-constructora/internal/middlewares"
 )
 
 type Service struct {
@@ -12,8 +14,52 @@ type Service struct {
 	hub  *WSHub
 }
 
+// Notifier describe el método que cualquier módulo puede usar para emitir notificaciones a toda la empresa
+type Notifier interface {
+	NotifyFromContext(ctx context.Context, req CreateNotificationRequest) error
+}
+
 func NewService(repo *Repository, hub *WSHub) *Service {
 	return &Service{repo: repo, hub: hub}
+}
+
+// NotifyFromContext emite una notificación a toda la empresa. Lee company_id y el actor
+// (quien ejecutó la acción) directamente del contexto JWT, y el actor queda excluido.
+// Es el método que invocan los handlers de los demás módulos tras una mutación exitosa.
+func (s *Service) NotifyFromContext(ctx context.Context, req CreateNotificationRequest) error {
+	companyID, ok := middlewares.GetCompanyIDFromContext(ctx)
+	if !ok {
+		return errors.New("no se encontró la empresa en el contexto")
+	}
+
+	actorID, _ := middlewares.GetUserIDFromContext(ctx)
+
+	_, err := s.NotifyAll(ctx, companyID, actorID, req)
+	return err
+}
+
+// NotifyAll emite una notificación a todos los usuarios activos de la empresa, excluyendo al actor
+// que ejecutó la acción (companyID y actorID salen del contexto JWT).
+func (s *Service) NotifyAll(ctx context.Context, companyID, actorID string, req CreateNotificationRequest) (*Notification, error) {
+	userIDs, err := s.repo.GetUserIDsByCompany(ctx, companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	targets := make([]string, 0, len(userIDs))
+	for _, id := range userIDs {
+		if actorID != "" && id == actorID {
+			continue
+		}
+		targets = append(targets, id)
+	}
+
+	if len(targets) == 0 {
+		return nil, nil
+	}
+
+	req.TargetUsers = targets
+	return s.DispatchNotification(ctx, req, companyID)
 }
 
 func (s *Service) DispatchNotification(ctx context.Context, req CreateNotificationRequest, companyID string) (*Notification, error) {
