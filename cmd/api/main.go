@@ -1,7 +1,10 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"log"
+	"net"
 	"net/http"
 	"os"
 
@@ -56,6 +59,17 @@ func (s *statusRecorder) Write(b []byte) (int, error) {
 		s.status = http.StatusOK
 	}
 	return s.ResponseWriter.Write(b)
+}
+
+// Hijack permite que gorilla/websocket pueda hacer el upgrade de la conexión
+// (101 Switching Protocols) para /notifications/ws. Sin esto, el WebSocket
+// falla porque el ResponseWriter envuelto no implementa http.Hijacker.
+func (s *statusRecorder) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	hj, ok := s.ResponseWriter.(http.Hijacker)
+	if !ok {
+		return nil, nil, errors.New("websocket: la respuesta no implementa http.Hijacker")
+	}
+	return hj.Hijack()
 }
 
 func loggerAndRecovery(next http.Handler) http.Handler {
