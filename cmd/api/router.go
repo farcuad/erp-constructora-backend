@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"log"
 	"net/http"
 	"os"
 
@@ -31,6 +32,7 @@ import (
 	"erp-constructora/internal/superadmin"
 	"erp-constructora/internal/suppliers"
 	"erp-constructora/internal/users"
+	"erp-constructora/pkg/fcm"
 )
 
 func chain(h http.Handler, middlewares ...func(http.Handler) http.Handler) http.Handler {
@@ -51,8 +53,21 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	notificationsRepository := notifications.NewRepository(db)
 	notificationsHub := notifications.NewWSHub()
 
+	// Cliente FCM para push notifications (opcional: si no hay credenciales, solo se usan WebSockets)
+	var pushSender notifications.PushSender
+	fcmCredentials := os.Getenv("FIREBASE_CREDENTIALS_PATH")
+	if fcmCredentials == "" {
+		fcmCredentials = "config/config-service-account.json"
+	}
+	if fcmClient, err := fcm.NewFCMClient(fcmCredentials); err != nil {
+		log.Printf("Aviso: FCM deshabilitado (%v). Solo notificaciones por WebSocket.", err)
+	} else {
+		pushSender = fcmClient
+		log.Println("Cliente FCM inicializado correctamente")
+	}
+
 	// Inyectamos el Hub tanto al Service (para enviar eventos) como al Handler (para la conexión WS)
-	notificationsService := notifications.NewService(notificationsRepository, notificationsHub)
+	notificationsService := notifications.NewService(notificationsRepository, notificationsHub, pushSender)
 	notificationsHandler := notifications.NewHandler(notificationsService, notificationsHub)
 
 	subscriptionRepo := subscriptions.NewRepository(db)
@@ -327,6 +342,8 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("GET /notifications", protectedBasic(allRoles, notificationsHandler.GetMyNotifications))
 	mux.Handle("PATCH /notifications/{notification_id}/read", protectedBasic(allRoles, notificationsHandler.MarkRead))
 	mux.Handle("DELETE /notifications/{notification_id}", protectedBasic(managerRoles, notificationsHandler.DeleteNotification))
+	mux.Handle("POST /notifications/push-tokens", protectedBasic(allRoles, notificationsHandler.RegisterPushToken))
+	mux.Handle("DELETE /notifications/push-tokens", protectedBasic(allRoles, notificationsHandler.UnregisterPushToken))
 
 	// --- Audit Logs ---
 	mux.Handle("POST /audits-logs", protectedBasic(allRoles, auditLogsHandler.CreateLog))

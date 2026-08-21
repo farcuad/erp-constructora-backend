@@ -146,6 +146,54 @@ func (r *Repository) Delete(ctx context.Context, companyID, id string) error {
 	return err
 }
 
+// SavePushToken registra (o actualiza) el token FCM del dispositivo del usuario
+func (r *Repository) SavePushToken(ctx context.Context, userID, token, platform string) error {
+	query := `
+		INSERT INTO push_tokens (user_id, token, platform)
+		VALUES ($1, $2, $3)
+		ON CONFLICT (token) DO UPDATE 
+		SET user_id = EXCLUDED.user_id, 
+		    platform = EXCLUDED.platform, 
+		    updated_at = CURRENT_TIMESTAMP`
+
+	_, err := r.db.ExecContext(ctx, query, userID, token, platform)
+	return err
+}
+
+// DeletePushToken elimina el token (logout o token inválido reportado por FCM)
+func (r *Repository) DeletePushToken(ctx context.Context, token string) error {
+	query := `DELETE FROM push_tokens WHERE token = $1`
+	_, err := r.db.ExecContext(ctx, query, token)
+	return err
+}
+
+// GetPushTokensByUsers trae todos los tokens FCM de un conjunto de usuarios en un solo query
+func (r *Repository) GetPushTokensByUsers(ctx context.Context, userIDs []string) ([]string, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+
+	query := `SELECT token FROM push_tokens WHERE user_id = ANY($1::uuid[])`
+	rows, err := r.db.QueryContext(ctx, query, pq.Array(userIDs))
+	if err != nil {
+		log.Printf("[DB QUERY ERROR] notifications.GetPushTokensByUsers (%d usuarios): %v", len(userIDs), err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	tokens := make([]string, 0)
+	for rows.Next() {
+		var token string
+		if err := rows.Scan(&token); err != nil {
+			log.Printf("[DB SCAN ERROR] notifications.GetPushTokensByUsers: %v", err)
+			return nil, err
+		}
+		tokens = append(tokens, token)
+	}
+
+	return tokens, rows.Err()
+}
+
 func (r *Repository) MarkAsRead(ctx context.Context, companyID, notificationID, userID string) error {
 	query := `
 		UPDATE notification_reads 

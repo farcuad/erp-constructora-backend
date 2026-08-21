@@ -13,6 +13,17 @@ CREATE TABLE app_releases (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE push_tokens (
+    id BIGSERIAL PRIMARY KEY,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token TEXT NOT NULL UNIQUE,
+    platform VARCHAR(20) NOT NULL, -- 'android' / 'ios'
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_push_tokens_user_id ON push_tokens(user_id);
+
 -- Índice para traer eficientemente "el último release publicado"
 CREATE INDEX idx_app_releases_created_at
 ON app_releases(created_at DESC);

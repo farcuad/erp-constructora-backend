@@ -97,6 +97,52 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]string{"message": "Notificación marcada como leída"})
 }
 
+// RegisterPushToken registra el token FCM del dispositivo móvil (Flutter lo llama tras el login)
+func (h *Handler) RegisterPushToken(w http.ResponseWriter, r *http.Request) {
+	userID, ok := middlewares.GetUserIDFromContext(r.Context())
+	if !ok {
+		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		return
+	}
+
+	var req struct {
+		Token    string `json:"token"`
+		Platform string `json:"platform"` // 'android' / 'ios'
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Token == "" {
+		http.Error(w, "Se requiere el campo 'token'", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.RegisterPushToken(r.Context(), userID, req.Token, req.Platform); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{"message": "Token de push registrado"})
+}
+
+// UnregisterPushToken elimina el token FCM al cerrar sesión en la app móvil
+func (h *Handler) UnregisterPushToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Token == "" {
+		http.Error(w, "Se requiere el campo 'token'", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.service.UnregisterPushToken(r.Context(), req.Token); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"message": "Token de push eliminado"})
+}
+
 func (h *Handler) DeleteNotification(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {

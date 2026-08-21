@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"log"
 
 	"erp-constructora/internal/middlewares"
 )
@@ -12,6 +13,12 @@ import (
 type Service struct {
 	repo *Repository
 	hub  *WSHub
+	push PushSender
+}
+
+// PushSender envía push notifications vía FCM (implementado por pkg/fcm). Puede ser nil.
+type PushSender interface {
+	SendPush(ctx context.Context, tokens []string, title, body string, data map[string]string)
 }
 
 // Notifier describe el método que cualquier módulo puede usar para emitir notificaciones a toda la empresa
@@ -19,8 +26,8 @@ type Notifier interface {
 	NotifyFromContext(ctx context.Context, req CreateNotificationRequest) error
 }
 
-func NewService(repo *Repository, hub *WSHub) *Service {
-	return &Service{repo: repo, hub: hub}
+func NewService(repo *Repository, hub *WSHub, push PushSender) *Service {
+	return &Service{repo: repo, hub: hub, push: push}
 }
 
 // NotifyFromContext emite una notificación a toda la empresa. Lee company_id y el actor
@@ -118,7 +125,50 @@ func (s *Service) DispatchNotification(ctx context.Context, req CreateNotificati
 	// 2. Transmisión vía WebSockets en tiempo real a los usuarios destino conectados
 	s.hub.SendToUsers(companyID, req.TargetUsers, *notification)
 
+	// 3. Push notification vía FCM para los que NO tienen la app abierta (asíncrono, no bloquea)
+	if s.push != nil {
+		tokens, err := s.repo.GetPushTokensByUsers(ctx, req.TargetUsers)
+		if err != nil {
+			log.Printf("[PUSH ERROR] no se pudieron obtener los tokens FCM: %v", err)
+		} else if len(tokens) > 0 {
+			data := map[string]string{
+				"notification_id": notification.ID,
+				"entity_type":     req.EntityType,
+			}
+			if req.EntityID != nil {
+				data["entity_id"] = *req.EntityID
+			}
+			if req.ProjectID != nil {
+				data["project_id"] = *req.ProjectID
+			}
+			if req.LinkToUI != nil {
+				data["link_to_ui"] = *req.LinkToUI
+			}
+			// Contexto propio: el ctx del request muere al terminar el handler y cancelaría el envío
+			go s.push.SendPush(context.Background(), tokens, req.Title, req.Message, data)
+		}
+	}
+
 	return notification, nil
+}
+
+// RegisterPushToken guarda el token FCM que reporta la app móvil al iniciar sesión
+func (s *Service) RegisterPushToken(ctx context.Context, userID, token, platform string) error {
+	if userID == "" || token == "" {
+		return errors.New("el token es obligatorio")
+	}
+	if platform != "android" && platform != "ios" {
+		return errors.New("la plataforma debe ser 'android' o 'ios'")
+	}
+	return s.repo.SavePushToken(ctx, userID, token, platform)
+}
+
+// UnregisterPushToken elimina el token FCM (logout del dispositivo)
+func (s *Service) UnregisterPushToken(ctx context.Context, token string) error {
+	if token == "" {
+		return errors.New("el token es obligatorio")
+	}
+	return s.repo.DeletePushToken(ctx, token)
 }
 
 func (s *Service) FetchMyNotifications(ctx context.Context, companyID, userID string) ([]Notification, error) {
