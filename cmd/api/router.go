@@ -53,14 +53,23 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	notificationsRepository := notifications.NewRepository(db)
 	notificationsHub := notifications.NewWSHub()
 
-	// Cliente FCM para push notifications (opcional: si no hay credenciales, solo se usan WebSockets)
+	// Cliente FCM para push notifications (opcional: si no hay credenciales, solo se usan WebSockets).
+	// Prioridad: 1) FIREBASE_CREDENTIALS_JSON (contenido crudo, para VPS/contenedores)
+	//            2) FIREBASE_CREDENTIALS_PATH o config/config-service-account.json (desarrollo local)
 	var pushSender notifications.PushSender
-	fcmCredentials := os.Getenv("FIREBASE_CREDENTIALS_PATH")
-	if fcmCredentials == "" {
-		fcmCredentials = "config/config-service-account.json"
+	var fcmClient *fcm.FCMClient
+	var fcmErr error
+	if credsJSON := os.Getenv("FIREBASE_CREDENTIALS_JSON"); credsJSON != "" {
+		fcmClient, fcmErr = fcm.NewFCMClientFromJSON([]byte(credsJSON))
+	} else {
+		fcmPath := os.Getenv("FIREBASE_CREDENTIALS_PATH")
+		if fcmPath == "" {
+			fcmPath = "config/config-service-account.json"
+		}
+		fcmClient, fcmErr = fcm.NewFCMClient(fcmPath)
 	}
-	if fcmClient, err := fcm.NewFCMClient(fcmCredentials); err != nil {
-		log.Printf("Aviso: FCM deshabilitado (%v). Solo notificaciones por WebSocket.", err)
+	if fcmErr != nil {
+		log.Printf("Aviso: FCM deshabilitado (%v). Solo notificaciones por WebSocket.", fcmErr)
 	} else {
 		pushSender = fcmClient
 		log.Println("Cliente FCM inicializado correctamente")

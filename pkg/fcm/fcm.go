@@ -30,6 +30,26 @@ func NewFCMClient(credentialsPath string) (*FCMClient, error) {
 	return &FCMClient{client: messagingClient}, nil
 }
 
+// NewFCMClientFromJSON inicializa el cliente con el contenido crudo del JSON de la
+// cuenta de servicio (ideal para deploys donde el archivo no está en el repo,
+// ej: variable de entorno FIREBASE_CREDENTIALS_JSON en un VPS / contenedor).
+func NewFCMClientFromJSON(credentialsJSON []byte) (*FCMClient, error) {
+	ctx := context.Background()
+	opt := option.WithCredentialsJSON(credentialsJSON)
+
+	app, err := firebase.NewApp(ctx, nil, opt)
+	if err != nil {
+		return nil, err
+	}
+
+	messagingClient, err := app.Messaging(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FCMClient{client: messagingClient}, nil
+}
+
 // PushNotification encapsula el envío individual o múltiple
 func (f *FCMClient) SendPush(ctx context.Context, tokens []string, title, body string, data map[string]string) {
 	if len(tokens) == 0 {
