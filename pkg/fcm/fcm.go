@@ -2,6 +2,8 @@ package fcm
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
 
 	firebase "firebase.google.com/go/v4"
@@ -33,11 +35,31 @@ func NewFCMClient(credentialsPath string) (*FCMClient, error) {
 // NewFCMClientFromJSON inicializa el cliente con el contenido crudo del JSON de la
 // cuenta de servicio (ideal para deploys donde el archivo no está en el repo,
 // ej: variable de entorno FIREBASE_CREDENTIALS_JSON en un VPS / contenedor).
-func NewFCMClientFromJSON(credentialsJSON []byte) (*FCMClient, error) {
-	ctx := context.Background()
-	opt := option.WithCredentialsJSON(credentialsJSON)
+// projectID es opcional: si viene vacío se toma del campo "project_id" del JSON.
+func NewFCMClientFromJSON(credentialsJSON []byte, projectID string) (*FCMClient, error) {
+	// Diagnóstico: verificar que el JSON llegó completo y con los campos clave.
+	var fields map[string]interface{}
+	if err := json.Unmarshal(credentialsJSON, &fields); err != nil {
+		return nil, fmt.Errorf("el JSON de credenciales está malformado o truncado (¿se copió completo?): %w", err)
+	}
 
-	app, err := firebase.NewApp(ctx, nil, opt)
+	for _, key := range []string{"project_id", "client_email", "private_key"} {
+		val, ok := fields[key].(string)
+		if !ok || val == "" {
+			return nil, fmt.Errorf("al JSON de credenciales le falta el campo '%s' (revisa que la variable de entorno no esté truncada)", key)
+		}
+	}
+	log.Printf("Credenciales FCM recibidas: proyecto=%s, cuenta=%s", fields["project_id"], fields["client_email"])
+
+	ctx := context.Background()
+	opts := []option.ClientOption{option.WithCredentialsJSON(credentialsJSON)}
+
+	conf := &firebase.Config{}
+	if projectID != "" {
+		conf.ProjectID = projectID
+	}
+
+	app, err := firebase.NewApp(ctx, conf, opts...)
 	if err != nil {
 		return nil, err
 	}

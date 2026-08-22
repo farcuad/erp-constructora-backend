@@ -60,7 +60,7 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	var fcmClient *fcm.FCMClient
 	var fcmErr error
 	if credsJSON := os.Getenv("FIREBASE_CREDENTIALS_JSON"); credsJSON != "" {
-		fcmClient, fcmErr = fcm.NewFCMClientFromJSON([]byte(credsJSON))
+		fcmClient, fcmErr = fcm.NewFCMClientFromJSON([]byte(credsJSON), os.Getenv("FIREBASE_PROJECT_ID"))
 	} else {
 		fcmPath := os.Getenv("FIREBASE_CREDENTIALS_PATH")
 		if fcmPath == "" {
