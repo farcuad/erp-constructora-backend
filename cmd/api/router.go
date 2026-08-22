@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"erp-constructora/internal/app"
 	"erp-constructora/internal/attendance"
@@ -54,13 +56,28 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	notificationsHub := notifications.NewWSHub()
 
 	// Cliente FCM para push notifications (opcional: si no hay credenciales, solo se usan WebSockets).
-	// Prioridad: 1) FIREBASE_CREDENTIALS_JSON (contenido crudo, para VPS/contenedores)
+	// Prioridad: 1) FIREBASE_CREDENTIALS_JSON (JSON crudo o Base64, para VPS/contenedores)
 	//            2) FIREBASE_CREDENTIALS_PATH o config/config-service-account.json (desarrollo local)
 	var pushSender notifications.PushSender
 	var fcmClient *fcm.FCMClient
 	var fcmErr error
 	if credsJSON := os.Getenv("FIREBASE_CREDENTIALS_JSON"); credsJSON != "" {
-		fcmClient, fcmErr = fcm.NewFCMClientFromJSON([]byte(credsJSON), os.Getenv("FIREBASE_PROJECT_ID"))
+		trimmed := strings.TrimSpace(credsJSON)
+
+		var data []byte
+		if strings.HasPrefix(trimmed, "{") {
+			data = []byte(trimmed)
+			log.Printf("Diagnóstico FCM: JSON recibido directo (%d bytes)", len(trimmed))
+		} else {
+			decoded, err := base64.StdEncoding.DecodeString(trimmed)
+			if err != nil {
+				log.Printf("Aviso: FIREBASE_CREDENTIALS_JSON no empieza con '{' y tampoco es Base64 válido: %v", err)
+			}
+			data = decoded
+			log.Printf("Diagnóstico FCM: Base64 recibido (%d chars)", len(trimmed))
+		}
+
+		fcmClient, fcmErr = fcm.NewFCMClientFromJSON(data, os.Getenv("FIREBASE_PROJECT_ID"))
 	} else {
 		fcmPath := os.Getenv("FIREBASE_CREDENTIALS_PATH")
 		if fcmPath == "" {
