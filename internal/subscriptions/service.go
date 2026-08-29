@@ -28,23 +28,6 @@ func (s *Service) GetMySubscription(ctx context.Context, companyID string) (*Com
 	return sub, nil
 }
 
-func (s *Service) ActivateSubscription(ctx context.Context, companyID string, req *CreateSubscriptionRequest) (*CompanySubscription, error) {
-	if req.MaxProjects <= 0 {
-		req.MaxProjects = 1
-	}
-	if req.MaxUsers <= 0 {
-		req.MaxUsers = 3
-	}
-	if req.BillingCycle == "" {
-		req.BillingCycle = "monthly"
-	}
-	if req.Status == "" {
-		req.Status = "trial"
-	}
-
-	return s.repo.Create(ctx, companyID, req)
-}
-
 func (s *Service) UpdateSubscription(ctx context.Context, id, companyID string, req *UpdateSubscriptionRequest) (*CompanySubscription, error) {
 	existing, err := s.repo.GetByCompany(ctx, companyID)
 	if err != nil {

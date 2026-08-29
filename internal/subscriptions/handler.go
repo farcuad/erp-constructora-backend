@@ -32,30 +32,6 @@ func (h *Handler) GetMySubscription(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(sub)
 }
 
-func (h *Handler) CreateSubscription(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
-	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
-		return
-	}
-
-	var req CreateSubscriptionRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
-		return
-	}
-
-	sub, err := h.service.ActivateSubscription(r.Context(), companyID, &req)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(sub)
-}
-
 func (h *Handler) GetAllSubscriptions(w http.ResponseWriter, r *http.Request) {
 	subs, err := h.service.GetAllWithCompany(r.Context())
 	if err != nil {

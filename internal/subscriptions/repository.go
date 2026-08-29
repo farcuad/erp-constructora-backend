@@ -16,36 +16,6 @@ func NewRepository(db *sql.DB) *Repository {
 	return &Repository{db: db}
 }
 
-func (r *Repository) Create(ctx context.Context, companyID string, req *CreateSubscriptionRequest) (*CompanySubscription, error) {
-	query := `
-		INSERT INTO companies_subscriptions (company_id, status, price, billing_cycle, max_projects, max_users, max_storage_mb)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
-		RETURNING id, start_date, trial_end_date, created_at, updated_at`
-
-	var s CompanySubscription
-	trialEnd := time.Now().AddDate(0, 0, 14)
-
-	err := r.db.QueryRowContext(ctx, query,
-		companyID, req.Status, req.Price, req.BillingCycle,
-		req.MaxProjects, req.MaxUsers, req.MaxStorageMB,
-	).Scan(&s.ID, &s.StartDate, &s.TrialEndDate, &s.CreatedAt, &s.UpdatedAt)
-
-	if err != nil {
-		return nil, err
-	}
-
-	s.TrialEndDate = &trialEnd
-	s.CompanyID = companyID
-	s.Status = req.Status
-	s.Price = req.Price
-	s.BillingCycle = req.BillingCycle
-	s.MaxProjects = req.MaxProjects
-	s.MaxUsers = req.MaxUsers
-	s.MaxStorageMB = req.MaxStorageMB
-
-	return &s, nil
-}
-
 func (r *Repository) GetByCompany(ctx context.Context, companyID string) (*CompanySubscription, error) {
 	query := `
 		SELECT id, company_id, status, start_date, end_date, trial_end_date, price,

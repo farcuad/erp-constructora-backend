@@ -384,7 +384,6 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.Handle("GET /subscriptions/me", chain(http.HandlerFunc(subscriptionHandler.GetMySubscription), auth))
 	mux.Handle("GET /subscriptions", chain(http.HandlerFunc(subscriptionHandler.GetAllSubscriptions), auth, adminOnly))
 	mux.Handle("GET /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.GetSubscriptionByID), auth, adminOnly))
-	mux.Handle("POST /subscriptions", chain(http.HandlerFunc(subscriptionHandler.CreateSubscription), auth, adminOnly))
 	mux.Handle("PATCH /subscriptions/{id}", chain(http.HandlerFunc(subscriptionHandler.UpdateSubscription), auth, adminOnly))
 
 	return mux

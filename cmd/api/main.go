@@ -124,14 +124,15 @@ func main() {
 	log.Println("Conexión exitosa a PostgreSQL desde el archivo .env")
 
 	router := SetupRoutes(db)
-	// 6. Encender el servidor HTTP
+	// 6. Encender el servidor HTTP con prefijo /api/v1
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080" // Puerto por defecto si no está en el .env
 	}
 
 	log.Printf("Servidor corriendo en el puerto :%s...", port)
-	finalHandler := enableCORS(loggerAndRecovery(router))
+	apiHandler := http.StripPrefix("/api/v1", router)
+	finalHandler := enableCORS(loggerAndRecovery(apiHandler))
 
 	if err := http.ListenAndServe(":"+port, finalHandler); err != nil {
 		log.Fatal(err)

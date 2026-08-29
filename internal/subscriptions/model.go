@@ -44,15 +44,6 @@ type PaymentRecord struct {
 	Reference     string    `json:"reference,omitempty"`
 }
 
-type CreateSubscriptionRequest struct {
-	Status       string  `json:"status"`
-	Price        float64 `json:"price"`
-	BillingCycle string  `json:"billing_cycle"`
-	MaxProjects  int     `json:"max_projects"`
-	MaxUsers     int     `json:"max_users"`
-	MaxStorageMB int     `json:"max_storage_mb"`
-}
-
 type UpdateSubscriptionRequest struct {
 	Status       *string  `json:"status,omitempty"`
 	Price        *float64 `json:"price,omitempty"`
