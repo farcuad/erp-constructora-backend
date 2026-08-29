@@ -19,6 +19,7 @@ type Employee struct {
 	DNI        string    `json:"dni"`
 	Phone      string    `json:"phone,omitempty"`
 	Email      string    `json:"email,omitempty"`
+	ImgURL     string    `json:"img_url,omitempty"`
 	Status     string    `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
@@ -36,6 +37,7 @@ type UpdateEmployeeRequest struct {
 	DNI        string `json:"dni"`
 	Phone      string `json:"phone,omitempty"`
 	Email      string `json:"email,omitempty"`
+	ImgURL     string `json:"img_url,omitempty"`
 	Status     string `json:"status"`
 }
 

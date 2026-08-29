@@ -198,6 +198,7 @@ func (h *Handler) UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 		DNI:        req.DNI,
 		Phone:      req.Phone,
 		Email:      req.Email,
+		ImgURL:     req.ImgURL,
 		Status:     req.Status,
 	}
 

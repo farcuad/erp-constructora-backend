@@ -21,20 +21,20 @@ func (r *Repository) CreatePosition(ctx context.Context, p *Position) error {
 }
 
 func (r *Repository) CreateEmployee(ctx context.Context, e *Employee) error {
-	query := `INSERT INTO employees (company_id, position_id, first_name, last_name, dni, phone, email) 
-	          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, status, created_at, updated_at`
+	query := `INSERT INTO employees (company_id, position_id, first_name, last_name, dni, phone, email, img_url) 
+	          VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id, status, created_at, updated_at`
 
 	var posID interface{} = nil
 	if e.PositionID != "" {
 		posID = e.PositionID
 	}
 
-	return r.db.QueryRowContext(ctx, query, e.CompanyID, posID, e.FirstName, e.LastName, e.DNI, e.Phone, e.Email).
+	return r.db.QueryRowContext(ctx, query, e.CompanyID, posID, e.FirstName, e.LastName, e.DNI, e.Phone, e.Email, e.ImgURL).
 		Scan(&e.ID, &e.Status, &e.CreatedAt, &e.UpdatedAt)
 }
 
 func (r *Repository) GetEmployeesByCompany(ctx context.Context, companyID string) ([]Employee, error) {
-	query := `SELECT id, company_id, COALESCE(position_id::text, ''), first_name, last_name, dni, COALESCE(phone, ''), COALESCE(email, ''), status, created_at, updated_at 
+	query := `SELECT id, company_id, COALESCE(position_id::text, ''), first_name, last_name, dni, COALESCE(phone, ''), COALESCE(email, ''), COALESCE(img_url, ''), status, created_at, updated_at 
 	          FROM employees WHERE company_id = $1`
 	rows, err := r.db.QueryContext(ctx, query, companyID)
 	if err != nil {
@@ -46,7 +46,7 @@ func (r *Repository) GetEmployeesByCompany(ctx context.Context, companyID string
 	var employees []Employee
 	for rows.Next() {
 		var e Employee
-		if err := rows.Scan(&e.ID, &e.CompanyID, &e.PositionID, &e.FirstName, &e.LastName, &e.DNI, &e.Phone, &e.Email, &e.Status, &e.CreatedAt, &e.UpdatedAt); err != nil {
+		if err := rows.Scan(&e.ID, &e.CompanyID, &e.PositionID, &e.FirstName, &e.LastName, &e.DNI, &e.Phone, &e.Email, &e.ImgURL, &e.Status, &e.CreatedAt, &e.UpdatedAt); err != nil {
 			log.Printf("[DB SCAN ERROR] personnel.GetEmployeesByCompany (company_id=%s): %v", companyID, err)
 			return nil, err
 		}
@@ -114,12 +114,12 @@ func (r *Repository) DeletePosition(ctx context.Context, companyID, id string) e
 }
 
 func (r *Repository) UpdateEmployee(ctx context.Context, e *Employee) error {
-	query := `UPDATE employees SET position_id = $1, first_name = $2, last_name = $3, dni = $4, phone = $5, email = $6, status = $7, updated_at = CURRENT_TIMESTAMP WHERE company_id = $8 AND id = $9`
+	query := `UPDATE employees SET position_id = $1, first_name = $2, last_name = $3, dni = $4, phone = $5, email = $6, img_url = $7, status = $8, updated_at = CURRENT_TIMESTAMP WHERE company_id = $9 AND id = $10`
 	var posID interface{} = nil
 	if e.PositionID != "" {
 		posID = e.PositionID
 	}
-	_, err := r.db.ExecContext(ctx, query, posID, e.FirstName, e.LastName, e.DNI, e.Phone, e.Email, e.Status, e.CompanyID, e.ID)
+	_, err := r.db.ExecContext(ctx, query, posID, e.FirstName, e.LastName, e.DNI, e.Phone, e.Email, e.ImgURL, e.Status, e.CompanyID, e.ID)
 	return err
 }
 
