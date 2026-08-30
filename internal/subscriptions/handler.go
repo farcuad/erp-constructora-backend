@@ -66,7 +66,7 @@ func (h *Handler) GetSubscriptionByID(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
-	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
+	_, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
 		http.Error(w, "No autorizado", http.StatusUnauthorized)
 		return
@@ -84,7 +84,7 @@ func (h *Handler) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sub, err := h.service.UpdateSubscription(r.Context(), subID, companyID, &req)
+	sub, err := h.service.UpdateSubscription(r.Context(), subID, subID, &req)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
