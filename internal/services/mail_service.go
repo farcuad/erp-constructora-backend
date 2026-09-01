@@ -29,6 +29,8 @@ func (s *MailService) SendEmail(toEmail, subject, htmlBody string) error {
 		return errors.New("GMAIL_USER y GMAIL_APP_PASSWORD no están configurados")
 	}
 
+	htmlBody = s.buildTemplate(htmlBody)
+
 	auth := smtp.PlainAuth("", gmailUser, gmailPass, "smtp.gmail.com")
 
 	msg := fmt.Sprintf(
@@ -78,4 +80,41 @@ func (s *MailService) SendEmail(toEmail, subject, htmlBody string) error {
 	}
 
 	return c.Quit()
+}
+
+func (s *MailService) buildTemplate(content string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Construx ERP</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F5F5F5;font-family:'Segoe UI',Arial,sans-serif;">
+<table align="center" cellpadding="0" cellspacing="0" width="100%%" style="max-width:600px;">
+<tr>
+<td style="background-color:#000000;text-align:center;padding:30px 20px;">
+<table align="center" cellpadding="0" cellspacing="0" width="100%%" style="max-width:560px;">
+<tr>
+<td style="text-align:center;">
+<h1 style="color:#F99B2E;font-size:28px;font-weight:800;margin:0;letter-spacing:2px;">CONSTUEX</h1>
+<p style="color:#999999;font-size:13px;margin:6px 0 0 0;letter-spacing:3px;">ERP &nbsp;|&nbsp; CONSTRUCTORA</p>
+</td>
+</tr>
+</table>
+</td>
+</tr>
+<tr>
+<td style="background-color:#FFFFFF;padding:40px 30px;">
+%s
+</td>
+</tr>
+<tr>
+<td style="background-color:#000000;padding:20px;text-align:center;">
+<p style="color:#555555;font-size:11px;margin:0;letter-spacing:1px;">Construx ERP &mdash; Todos los derechos reservados</p>
+</td>
+</tr>
+</table>
+</body>
+</html>`, content)
 }

@@ -48,7 +48,13 @@ func (h *Handler) RegisterCompanyAndAdmin(w http.ResponseWriter, r *http.Request
 
 	// Enviar email de bienvenida
 	subject := "Bienvenido a Construx"
-	htmlBody := fmt.Sprintf(`<h1>Bienvenido %s</h1><p>La empresa <strong>%s</strong> ha sido registrada exitosamente.</p>`, admin.Name, company.Name)
+	htmlBody := fmt.Sprintf(`
+		<div style="text-align:center;padding:10px 0;">
+			<div style="display:inline-block;background-color:#F99B2E;color:#000000;padding:12px 30px;border-radius:6px;font-weight:800;font-size:14px;letter-spacing:1px;margin-bottom:25px;">BIENVENIDO</div>
+			<h1 style="color:#000000;font-size:26px;font-weight:700;margin:0 0 10px 0;">%s</h1>
+			<p style="color:#333333;font-size:16px;line-height:1.6;margin:0 0 10px 0;">La empresa <strong style="color:#F99B2E;">%s</strong> ha sido registrada exitosamente.</p>
+			<p style="color:#666666;font-size:14px;line-height:1.6;">Tu cuenta está lista. Inicia sesión y comienza a gestionar tu constructora.</p>
+		</div>`, admin.Name, company.Name)
 	if err := h.mailService.SendEmail(admin.Email, subject, htmlBody); err != nil {
 		log.Printf("Error enviando email de bienvenida a %s: %v", admin.Email, err)
 	}

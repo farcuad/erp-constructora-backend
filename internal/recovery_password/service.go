@@ -47,10 +47,12 @@ func (s *AuthService) RequestPasswordReset(email string) error {
 
 	go func() {
 		htmlBody := fmt.Sprintf(`
-			<h2>Recuperación de Contraseña - Construx ERP</h2>
-			<p>Tu código de verificación es: <strong>%s</strong></p>
-			<p>Este código vencerá en 15 minutos.</p>
-		`, token)
+			<div style="text-align:center;padding:10px 0;">
+				<div style="display:inline-block;background-color:#F99B2E;color:#000000;padding:10px 25px;border-radius:6px;font-weight:800;font-size:14px;letter-spacing:1px;margin-bottom:25px;">RECUPERAR CONTRASEÑA</div>
+				<h1 style="color:#000000;font-size:24px;font-weight:700;margin:0 0 15px 0;">Tu código de verificación</h1>
+				<div style="display:inline-block;background-color:#F99B2E;color:#000000;padding:14px 40px;border-radius:8px;font-weight:800;font-size:32px;letter-spacing:8px;margin-bottom:20px;">%s</div>
+				<p style="color:#666666;font-size:14px;line-height:1.6;">Este código vencerá en 15 minutos.</p>
+			</div>`, token)
 
 		if err := s.mailService.SendEmail(email, "Código de recuperación - Construx", htmlBody); err != nil {
 			log.Printf("Error enviando email de recuperación a %s: %v", email, err)
