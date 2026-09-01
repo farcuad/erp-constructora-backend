@@ -92,6 +92,21 @@ func (r *Repository) ExecRegistryTransaction(ctx context.Context, comp *Company,
 	return tx.Commit()
 }
 
+func (r *Repository) GetAdminEmailByCompanyID(ctx context.Context, companyID string) (string, error) {
+	query := `
+		SELECT u.email FROM users u
+		JOIN user_roles ur ON u.id = ur.user_id
+		JOIN roles r ON ur.role_id = r.id
+		WHERE u.company_id = $1 AND r.name = 'Administrador'
+		LIMIT 1`
+	var email string
+	err := r.db.QueryRowContext(ctx, query, companyID).Scan(&email)
+	if err != nil {
+		return "", err
+	}
+	return email, nil
+}
+
 func (r *Repository) GetEmailUserWithDetails(ctx context.Context, email string) (*User, error) {
 	query := `
         SELECT 

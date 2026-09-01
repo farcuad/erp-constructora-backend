@@ -257,3 +257,59 @@ func (r *Repository) GetPaymentsByCompany(ctx context.Context, companyID string)
 	}
 	return payments, nil
 }
+
+func (r *Repository) GetSubscriptionsExpiringSoon(ctx context.Context, days int) ([]CompanySubscription, error) {
+	now := time.Now()
+	expiryDate := now.AddDate(0, 0, days)
+
+	query := `
+		SELECT id, company_id, status, start_date, end_date, trial_end_date, price,
+		       billing_cycle, max_projects, max_users, max_storage_mb, features,
+		       COALESCE(payment_provider, ''), COALESCE(payment_provider_subscription_id, ''),
+		       COALESCE(payment_provider_customer_id, ''),
+		       last_payment_date, next_billing_date, cancelled_at, created_at, updated_at
+		FROM companies_subscriptions
+		WHERE (trial_end_date BETWEEN $1 AND $2 OR end_date BETWEEN $1 AND $2)
+		ORDER BY COALESCE(trial_end_date, end_date) ASC`
+
+	rows, err := r.db.QueryContext(ctx, query, now, expiryDate)
+	if err != nil {
+		log.Printf("[DB QUERY ERROR] subscriptions.GetSubscriptionsExpiringSoon (days=%d): %v", days, err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var subs []CompanySubscription
+	for rows.Next() {
+		var s CompanySubscription
+		var endDate, trialEnd, lastPayment, nextBilling, cancelled sql.NullTime
+		var features sql.NullString
+
+		err := rows.Scan(
+			&s.ID, &s.CompanyID, &s.Status, &s.StartDate, &endDate, &trialEnd,
+			&s.Price, &s.BillingCycle, &s.MaxProjects, &s.MaxUsers, &s.MaxStorageMB,
+			&features, &s.PaymentProvider, &s.PaymentProviderSubscriptionID,
+			&s.PaymentProviderCustomerID, &lastPayment, &nextBilling, &cancelled,
+			&s.CreatedAt, &s.UpdatedAt,
+		)
+		if err != nil {
+			log.Printf("[DB SCAN ERROR] subscriptions.GetSubscriptionsExpiringSoon: %v", err)
+			return nil, err
+		}
+
+		if endDate.Valid { s.EndDate = &endDate.Time }
+		if trialEnd.Valid { s.TrialEndDate = &trialEnd.Time }
+		if lastPayment.Valid { s.LastPaymentDate = &lastPayment.Time }
+		if nextBilling.Valid { s.NextBillingDate = &nextBilling.Time }
+		if cancelled.Valid { s.CancelledAt = &cancelled.Time }
+		if features.Valid { s.Features = features.String }
+
+		subs = append(subs, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("[DB ROWS ITERATION ERROR] subscriptions.GetSubscriptionsExpiringSoon: %v", err)
+		return nil, fmt.Errorf("error iterando filas: %w", err)
+	}
+	return subs, nil
+}

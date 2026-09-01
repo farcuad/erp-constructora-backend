@@ -16,6 +16,7 @@ require github.com/pgvector/pgvector-go v0.4.1
 require (
 	firebase.google.com/go/v4 v4.21.0
 	github.com/nguyenthenguyen/docx v0.0.0-20230621112118-9c8e795a11db
+	github.com/robfig/cron/v3 v3.0.1
 	google.golang.org/api v0.279.0
 )
 

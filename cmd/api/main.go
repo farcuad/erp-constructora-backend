@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"log"
 	"net"
@@ -9,6 +10,10 @@ import (
 	"os"
 
 	"erp-constructora/internal/database"
+	"erp-constructora/internal/services"
+	"erp-constructora/internal/services/cronJobs"
+	"erp-constructora/internal/subscriptions"
+	"erp-constructora/internal/users"
 
 	"time"
 
@@ -122,6 +127,13 @@ func main() {
 	defer db.Close() // Se cerrará cuando apagues el servidor
 
 	log.Println("Conexión exitosa a PostgreSQL desde el archivo .env")
+
+	// Cron job de suscripciones - se ejecuta en background
+	userRepo := users.NewRepository(db)
+	subRepo := subscriptions.NewRepository(db)
+	subService := subscriptions.NewService(subRepo)
+	mailService := services.NewMailService()
+	go cronJobs.StartSubscriptionExpiryCron(context.Background(), subService, mailService, userRepo)
 
 	router := SetupRoutes(db)
 	// 6. Encender el servidor HTTP con prefijo /api/v1

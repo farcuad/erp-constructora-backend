@@ -133,3 +133,7 @@ func (s *Service) GetByIDWithPayments(ctx context.Context, id string) (*CompanyS
 
 	return sub, payments, nil
 }
+
+func (s *Service) GetSubscriptionsExpiringSoon(ctx context.Context, days int) ([]CompanySubscription, error) {
+	return s.repo.GetSubscriptionsExpiringSoon(ctx, days)
+}

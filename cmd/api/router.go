@@ -31,8 +31,10 @@ import (
 	"erp-constructora/internal/rag/worker"
 	schedule "erp-constructora/internal/shedule"
 	"erp-constructora/internal/subscriptions"
+	recoverypassword "erp-constructora/internal/recovery_password"
 	"erp-constructora/internal/superadmin"
 	"erp-constructora/internal/suppliers"
+	"erp-constructora/internal/services"
 	"erp-constructora/internal/users"
 	"erp-constructora/pkg/fcm"
 )
@@ -50,7 +52,8 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	userRepo := users.NewRepository(db)
 	userService := users.NewService(userRepo)
-	userHandler := users.NewHandler(userService)
+	mailService := services.NewMailService()
+	userHandler := users.NewHandler(userService, mailService)
 
 	notificationsRepository := notifications.NewRepository(db)
 	notificationsHub := notifications.NewWSHub()
@@ -185,6 +188,10 @@ func SetupRoutes(db *sql.DB) http.Handler {
 
 	subscriptionHandler := subscriptions.NewHandler(subscriptionService)
 
+	recoveryRepo := recoverypassword.NewAuthRepository(db)
+	recoveryService := recoverypassword.NewAuthService(recoveryRepo, mailService)
+	recoveryHandler := recoverypassword.NewHandler(recoveryService)
+
 	superAdminRepo := superadmin.NewRepository(db)
 	superAdminService := superadmin.NewService(superAdminRepo)
 	superAdminHandler := superadmin.NewHandler(superAdminService)
@@ -219,6 +226,8 @@ func SetupRoutes(db *sql.DB) http.Handler {
 	mux.HandleFunc("POST /register", userHandler.RegisterCompanyAndAdmin)
 	mux.HandleFunc("POST /login", userHandler.Login)
 	mux.HandleFunc("POST /admin/login", superAdminHandler.Login)
+	mux.HandleFunc("POST /recovery/forgot-password", recoveryHandler.RequestPasswordReset)
+	mux.HandleFunc("POST /recovery/reset-password", recoveryHandler.ResetPassword)
 
 	// --- Users & Roles ---
 	mux.Handle("GET /roles", protected(managerRoles, userHandler.GetRoles))

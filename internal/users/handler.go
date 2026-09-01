@@ -2,17 +2,21 @@ package users
 
 import (
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
 
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/services"
 )
 
 type Handler struct {
-	service *Service
+	service     *Service
+	mailService *services.MailService
 }
 
-func NewHandler(service *Service) *Handler {
-	return &Handler{service: service}
+func NewHandler(service *Service, mailService *services.MailService) *Handler {
+	return &Handler{service: service, mailService: mailService}
 }
 
 func (h *Handler) RegisterCompanyAndAdmin(w http.ResponseWriter, r *http.Request) {
@@ -40,6 +44,13 @@ func (h *Handler) RegisterCompanyAndAdmin(w http.ResponseWriter, r *http.Request
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
+	}
+
+	// Enviar email de bienvenida
+	subject := "Bienvenido a Construx"
+	htmlBody := fmt.Sprintf(`<h1>Bienvenido %s</h1><p>La empresa <strong>%s</strong> ha sido registrada exitosamente.</p>`, admin.Name, company.Name)
+	if err := h.mailService.SendEmail(admin.Email, subject, htmlBody); err != nil {
+		log.Printf("Error enviando email de bienvenida a %s: %v", admin.Email, err)
 	}
 
 	// Estructurar respuesta exitosa
