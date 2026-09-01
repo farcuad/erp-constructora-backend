@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"erp-constructora/internal/utils"
 	"errors"
 	"net/http"
 	"os"
@@ -41,7 +42,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		}
 
 		if tokenString == "" {
-			http.Error(w, "Se requiere token de autenticación", http.StatusUnauthorized)
+			utils.WriteUnauthorized(w)
 			return
 		}
 
@@ -60,7 +61,7 @@ func AuthMiddleware(next http.Handler) http.Handler {
 		})
 
 		if err != nil || !token.Valid {
-			http.Error(w, "Token inválido o expirado", http.StatusUnauthorized)
+			utils.WriteUnauthorized(w)
 			return
 		}
 
@@ -100,7 +101,7 @@ func IsSuperAdminFromContext(ctx context.Context) bool {
 func RequireSuperAdmin(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if !IsSuperAdminFromContext(r.Context()) {
-			http.Error(w, "Acceso denegado: solo el administrador del sistema", http.StatusForbidden)
+			utils.WriteError(w, http.StatusForbidden, "Acceso denegado: solo el administrador del sistema")
 			return
 		}
 		next.ServeHTTP(w, r)

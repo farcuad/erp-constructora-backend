@@ -3,12 +3,12 @@ package documents
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -37,19 +37,19 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) CreateType(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var t DocumentType
 	if err := json.NewDecoder(r.Body).Decode(&t); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	t.CompanyID = companyID
 
 	if err := h.service.CreateDocumentType(r.Context(), &t); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -72,7 +72,7 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
@@ -89,7 +89,7 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -111,7 +111,7 @@ func (h *Handler) CreateDocument(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UploadInitialDocument(r.Context(), &doc, &ver); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -138,20 +138,20 @@ func (h *Handler) UpdateVersion(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var ver DocumentVersion
 	if err := json.NewDecoder(r.Body).Decode(&ver); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	ver.CompanyID = companyID
 	ver.UserID = userID
 
 	if err := h.service.UploadNewVersion(r.Context(), &ver); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -172,24 +172,24 @@ func (h *Handler) UpdateVersion(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateDocumentType(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	var req UpdateDocumentTypeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.UpdateDocumentType(r.Context(), companyID, id, req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -209,18 +209,18 @@ func (h *Handler) UpdateDocumentType(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteDocumentType(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	if err := h.service.DeleteDocumentType(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -240,24 +240,24 @@ func (h *Handler) DeleteDocumentType(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateDocument(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	var req UpdateDocumentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.UpdateDocument(r.Context(), companyID, id, req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -277,13 +277,13 @@ func (h *Handler) UpdateDocument(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetTypes(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	types, err := h.service.GetDocumentTypes(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -294,19 +294,19 @@ func (h *Handler) GetTypes(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetDocuments(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "Falta project_id en la ruta", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta project_id en la ruta")
 		return
 	}
 
 	docs, err := h.service.GetProjectDocuments(r.Context(), companyID, projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -317,19 +317,19 @@ func (h *Handler) GetDocuments(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetDocumentByID(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del documento", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del documento")
 		return
 	}
 
 	doc, err := h.service.GetDocumentByID(r.Context(), companyID, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.WriteNotFound(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -340,19 +340,19 @@ func (h *Handler) GetDocumentByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	documentID := r.PathValue("document_id")
 	if documentID == "" {
-		http.Error(w, "Falta el id del documento", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del documento")
 		return
 	}
 
 	versions, err := h.service.GetDocumentVersions(r.Context(), companyID, documentID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -363,18 +363,18 @@ func (h *Handler) GetVersions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteDocument(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	if err := h.service.DeleteDocument(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

@@ -3,11 +3,11 @@ package attendance
 import (
 	"context"
 	"encoding/json"
-	"log"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
 	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
+	"log"
+	"net/http"
 )
 
 func strPtr(s string) *string {
@@ -36,19 +36,19 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) SaveAttendance(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var att Attendance
 	if err := json.NewDecoder(r.Body).Decode(&att); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 	att.CompanyID = companyID
 
 	if err := h.service.SubmitAttendance(r.Context(), &att); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -75,13 +75,13 @@ func (h *Handler) GetAttendance(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
 
 	if projectID == "" || date == "" {
-		http.Error(w, "El parámetro project_id en la ruta y el query 'date' son obligatorios", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro project_id en la ruta y el query 'date' son obligatorios")
 		return
 	}
 
 	report, err := h.service.GetDailyReport(r.Context(), projectID, date)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -99,13 +99,13 @@ func (h *Handler) GetAttendance(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateAttendanceLog(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del registro de asistencia", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del registro de asistencia")
 		return
 	}
 
 	var req UpdateAttendanceLogRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
@@ -117,7 +117,7 @@ func (h *Handler) UpdateAttendanceLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdateAttendanceLog(r.Context(), &log); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -137,18 +137,18 @@ func (h *Handler) UpdateAttendanceLog(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteAttendance(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id de la asistencia", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id de la asistencia")
 		return
 	}
 
 	if err := h.service.DeleteAttendance(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

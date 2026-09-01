@@ -3,12 +3,12 @@ package budgets
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -37,25 +37,25 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	companyId, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyId == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || userID == "" {
-		http.Error(w, "No autorizado: ID de usuario ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req CreateBudgetWithItemsRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Payload inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Payload inválido")
 		return
 	}
 
 	budget, err := h.service.CreateInitialBudget(r.Context(), companyId, userID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -78,25 +78,25 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	companyId, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyId == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "ID del presupuesto es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID del presupuesto es requerido")
 		return
 	}
 
 	var req UpdateBudgetRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Payload inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Payload inválido")
 		return
 	}
 
 	budget, err := h.service.UpdateBudget(r.Context(), companyId, id, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -116,19 +116,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	companyId, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyId == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "ID del presupuesto es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID del presupuesto es requerido")
 		return
 	}
 
 	err := h.service.DeleteBudget(r.Context(), companyId, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -149,17 +149,17 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetBudgetsByProjectID(w http.ResponseWriter, r *http.Request) {
 	companyId, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyId == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 	projectId := r.PathValue("project_id")
 	if projectId == "" {
-		http.Error(w, "ID de proyecto es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID de proyecto es requerido")
 		return
 	}
 	budgets, err := h.service.GetBudgetsProjectID(r.Context(), companyId, projectId)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")

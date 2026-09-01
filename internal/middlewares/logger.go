@@ -2,6 +2,7 @@
 package middlewares
 
 import (
+	"erp-constructora/internal/utils"
 	"log"
 	"net/http"
 	"runtime/debug"
@@ -39,7 +40,7 @@ func LoggerAndRecovery(next http.Handler) http.Handler {
 			if err := recover(); err != nil {
 				log.Printf("[PANIC CRITICAL] %s %s | Error: %v\nStack trace:\n%s",
 					r.Method, r.URL.Path, err, string(debug.Stack()))
-				http.Error(w, `{"error": "Internal server error"}`, http.StatusInternalServerError)
+				utils.WriteError(w, http.StatusInternalServerError, "Error interno del servidor")
 				return
 			}
 			if rec.status >= 400 {

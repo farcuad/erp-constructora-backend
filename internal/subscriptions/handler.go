@@ -2,9 +2,9 @@ package subscriptions
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -18,13 +18,13 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) GetMySubscription(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	sub, err := h.service.GetMySubscription(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.WriteNotFound(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -35,7 +35,7 @@ func (h *Handler) GetMySubscription(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllSubscriptions(w http.ResponseWriter, r *http.Request) {
 	subs, err := h.service.GetAllWithCompany(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -46,13 +46,13 @@ func (h *Handler) GetAllSubscriptions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetSubscriptionByID(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id de la suscripción", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id de la suscripción")
 		return
 	}
 
 	sub, payments, err := h.service.GetByIDWithPayments(r.Context(), id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.WriteNotFound(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -68,25 +68,25 @@ func (h *Handler) GetSubscriptionByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateSubscription(w http.ResponseWriter, r *http.Request) {
 	_, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	subID := r.PathValue("id")
 	if subID == "" {
-		http.Error(w, "Falta el id de la suscripción", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id de la suscripción")
 		return
 	}
 
 	var req UpdateSubscriptionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	sub, err := h.service.UpdateSubscription(r.Context(), subID, subID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

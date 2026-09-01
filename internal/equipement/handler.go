@@ -3,12 +3,12 @@ package equipement
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -37,19 +37,19 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) CreateEquipment(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "Acceso no autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var eq Equipment
 	if err := json.NewDecoder(r.Body).Decode(&eq); err != nil {
-		http.Error(w, "JSON corrupto o inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON corrupto o inválido")
 		return
 	}
 	eq.CompanyID = companyID
 
 	if err := h.service.RegisterEquipment(r.Context(), &eq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -70,13 +70,13 @@ func (h *Handler) CreateEquipment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "Acceso no autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	list, err := h.service.ListEquipment(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -87,19 +87,19 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Assign(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "Acceso no autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var assign EquipmentAssignment
 	if err := json.NewDecoder(r.Body).Decode(&assign); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	assign.AssignedBy = userID
 
 	if err := h.service.AssignEquipment(r.Context(), &assign); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -122,13 +122,13 @@ func (h *Handler) GetAssignment(w http.ResponseWriter, r *http.Request) {
 
 	equipmentID := r.PathValue("equipment_id")
 	if equipmentID == "" {
-		http.Error(w, "Falta equipment_id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta equipment_id")
 		return
 	}
 
 	list, err := h.service.GetEquipementassignments(r.Context(), equipmentID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -139,12 +139,12 @@ func (h *Handler) GetAssignment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Maintenance(w http.ResponseWriter, r *http.Request) {
 	var m MaintenanceRecord
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.RegisterMaintenance(r.Context(), &m); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -166,13 +166,13 @@ func (h *Handler) GetMaintenanceById(w http.ResponseWriter, r *http.Request) {
 
 	equipmentID := r.PathValue("equipment_id")
 	if equipmentID == "" {
-		http.Error(w, "Falta equipment_id en los parametros", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta equipment_id en los parametros")
 		return
 	}
 
 	list, err := h.service.GetMaintenance(r.Context(), equipmentID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -183,25 +183,25 @@ func (h *Handler) GetMaintenanceById(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateEquipment(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req UpdateEquipmentRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
 	e, err := h.service.UpdateEquipment(r.Context(), id, companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -221,18 +221,18 @@ func (h *Handler) UpdateEquipment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteEquipment(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	if err := h.service.DeleteEquipment(r.Context(), id, companyID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -253,13 +253,13 @@ func (h *Handler) GetAllEquipmentTypes(w http.ResponseWriter, r *http.Request) {
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "Acceso no autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	list, err := h.service.GetEquipmentTypes(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -270,19 +270,19 @@ func (h *Handler) GetAllEquipmentTypes(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateEquipmentType(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "Acceso no autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var eq EquipmentType
 	if err := json.NewDecoder(r.Body).Decode(&eq); err != nil {
-		http.Error(w, "JSON corrupto o inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON corrupto o inválido")
 		return
 	}
 	eq.CompanyID = companyID
 
 	if err := h.service.CreateEquipmentTypes(r.Context(), &eq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -303,25 +303,25 @@ func (h *Handler) CreateEquipmentType(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateEquipmentType(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req UpdateEquipmentTypeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
 	et, err := h.service.UpdateEquipmentType(r.Context(), id, companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -341,18 +341,18 @@ func (h *Handler) UpdateEquipmentType(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteEquipmentType(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	if err := h.service.DeleteEquipmentType(r.Context(), id, companyID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

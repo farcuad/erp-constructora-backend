@@ -2,6 +2,7 @@ package recoverypassword
 
 import (
 	"encoding/json"
+	"erp-constructora/internal/utils"
 	"net/http"
 )
 
@@ -15,23 +16,23 @@ func NewHandler(service *AuthService) *Handler {
 
 func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	var dto RequestResetDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if dto.Email == "" {
-		http.Error(w, "El correo es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El correo es obligatorio")
 		return
 	}
 
 	if err := h.service.RequestPasswordReset(dto.Email); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -42,23 +43,23 @@ func (h *Handler) RequestPasswordReset(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) ResetPassword(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	var dto ResetPasswordDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if dto.Email == "" || dto.Token == "" || dto.NewPassword == "" {
-		http.Error(w, "Todos los campos son obligatorios", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Todos los campos son obligatorios")
 		return
 	}
 
 	if err := h.service.ResetPassword(dto.Email, dto.Token, dto.NewPassword); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

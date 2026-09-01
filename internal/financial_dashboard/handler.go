@@ -2,9 +2,9 @@ package financialdashboard
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/users"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -18,19 +18,19 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) GetSummary(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := users.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "El parámetro project_id es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro project_id es requerido")
 		return
 	}
 
 	kpis, err := h.service.GetDashboardKPIs(r.Context(), companyID, projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

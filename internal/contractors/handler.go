@@ -3,12 +3,12 @@ package contractors
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -37,19 +37,19 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) CreateContractor(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var c Contractor
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		http.Error(w, "JSON corrupto", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON corrupto")
 		return
 	}
 	c.CompanyID = companyID
 
 	if err := h.service.CreateContractor(r.Context(), &c); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -70,19 +70,19 @@ func (h *Handler) CreateContractor(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateContract(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var cc ContractorContract
 	if err := json.NewDecoder(r.Body).Decode(&cc); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	cc.CompanyID = companyID
 
 	if err := h.service.CreateContract(r.Context(), &cc); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -105,19 +105,19 @@ func (h *Handler) CreateContract(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var p ContractorPayment
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	p.UserID = userID
 
 	if err := h.service.AddPayment(r.Context(), &p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -138,7 +138,7 @@ func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllContractPayments(w http.ResponseWriter, r *http.Request) {
 	suppliers, err := h.service.GetAllContractPayment(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -149,13 +149,13 @@ func (h *Handler) GetAllContractPayments(w http.ResponseWriter, r *http.Request)
 func (h *Handler) GetALlContracts(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	suppliers, err := h.service.GetALlContract(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -167,13 +167,13 @@ func (h *Handler) GetContracts(w http.ResponseWriter, r *http.Request) {
 	// Aplicando tu estilo de ruta limpia /{project_id}
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "Falta el parámetro project_id en la ruta", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro project_id en la ruta")
 		return
 	}
 
 	list, err := h.service.ListContractsByProject(r.Context(), projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -184,19 +184,19 @@ func (h *Handler) GetContracts(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateContractor(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del contratista", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del contratista")
 		return
 	}
 
 	var req UpdateContractorRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *Handler) UpdateContractor(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdateContractor(r.Context(), &c); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -232,18 +232,18 @@ func (h *Handler) UpdateContractor(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteContractor(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del contratista", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del contratista")
 		return
 	}
 
 	if err := h.service.DeleteContractor(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -262,19 +262,19 @@ func (h *Handler) DeleteContractor(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateContractorContract(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del contrato", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del contrato")
 		return
 	}
 
 	var req UpdateContractorContractRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -290,7 +290,7 @@ func (h *Handler) UpdateContractorContract(w http.ResponseWriter, r *http.Reques
 	}
 
 	if err := h.service.UpdateContract(r.Context(), &cc); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -311,18 +311,18 @@ func (h *Handler) UpdateContractorContract(w http.ResponseWriter, r *http.Reques
 func (h *Handler) DeleteContractorContract(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del contrato", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del contrato")
 		return
 	}
 
 	if err := h.service.DeleteContract(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

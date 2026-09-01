@@ -4,12 +4,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"errors"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -38,32 +38,32 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) CreateDailyReport(w http.ResponseWriter, r *http.Request) {
 	var report DailyReport
 	if err := json.NewDecoder(r.Body).Decode(&report); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 	report.CompanyID = companyID
 
 	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 	report.UserID = userID
 
 	if report.ProjectID == "" {
-		http.Error(w, "project_id es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "project_id es requerido")
 		return
 	}
 
 	err := h.service.SaveDailyProgress(r.Context(), &report)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -85,7 +85,7 @@ func (h *Handler) CreateDailyReport(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
@@ -93,7 +93,7 @@ func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 	date := r.URL.Query().Get("date")
 
 	if projectID == "" || date == "" {
-		http.Error(w, "El parámetro project_id en la ruta y el query 'date' son obligatorios", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro project_id en la ruta y el query 'date' son obligatorios")
 		return
 	}
 
@@ -105,7 +105,7 @@ func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 			json.NewEncoder(w).Encode(map[string]string{"message": "No se encontró reporte para este proyecto en la fecha especificada"})
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -116,24 +116,24 @@ func (h *Handler) GetDailyReport(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateDailyReport(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	var req UpdateDailyReportRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.UpdateDailyReport(r.Context(), companyID, id, req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -153,18 +153,18 @@ func (h *Handler) UpdateDailyReport(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteDailyReport(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	if err := h.service.DeleteDailyReport(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

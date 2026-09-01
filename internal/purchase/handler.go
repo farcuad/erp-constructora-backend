@@ -3,12 +3,12 @@ package purchase
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -42,13 +42,13 @@ func (h *Handler) CreatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 
 	if !okCompany || !okUser {
-		http.Error(w, "Credenciales de usuario o empresa no válidas en el contexto", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var po PurchaseOrder
 	if err := json.NewDecoder(r.Body).Decode(&po); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
@@ -57,7 +57,7 @@ func (h *Handler) CreatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	po.UserID = userID
 
 	if err := h.service.CreatePurchaseOrder(r.Context(), &po); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -81,13 +81,13 @@ func (h *Handler) GetOrdersByProject(w http.ResponseWriter, r *http.Request) {
 	// En Go 1.22+, extraemos el parámetro dinámico {project_id} definido en router.go
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "El parámetro project_id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro project_id es obligatorio")
 		return
 	}
 
 	orders, err := h.service.ListOrdersByProject(r.Context(), projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -98,25 +98,25 @@ func (h *Handler) GetOrdersByProject(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req UpdatePurchaseOrderRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
 	po, err := h.service.UpdatePurchaseOrder(r.Context(), id, companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -136,18 +136,18 @@ func (h *Handler) UpdatePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeletePurchaseOrder(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	if err := h.service.DeletePurchaseOrder(r.Context(), id, companyID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

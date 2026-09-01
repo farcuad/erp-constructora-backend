@@ -2,12 +2,12 @@ package users
 
 import (
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/services"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/services"
 )
 
 type Handler struct {
@@ -22,27 +22,27 @@ func NewHandler(service *Service, mailService *services.MailService) *Handler {
 func (h *Handler) RegisterCompanyAndAdmin(w http.ResponseWriter, r *http.Request) {
 	// Validar que sea un método POST
 	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	// Decodificar el JSON entrante
 	var dto RegisterDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
 	// Validaciones básicas de campos obligatorios (Reemplazo de tu antiguo Zod)
 	if dto.CompanyName == "" || dto.CompanyNIT == "" || dto.AdminEmail == "" || dto.Password == "" {
-		http.Error(w, "Todos los campos son obligatorios", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Todos los campos son obligatorios")
 		return
 	}
 
 	// Llamar al servicio mandando el contexto de la petición HTTP
 	company, admin, err := h.service.RegisterCompanyAndAdmin(r.Context(), dto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -114,13 +114,13 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetRoles(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	roles, err := h.service.GetRoles(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -133,13 +133,13 @@ func (h *Handler) GetRoles(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	usersList, err := h.service.GetUsers(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -152,19 +152,19 @@ func (h *Handler) GetUsers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var dto CreateUserDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	user, err := h.service.CreateUser(r.Context(), companyID, dto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -177,7 +177,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
@@ -185,13 +185,13 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	userID := r.PathValue("id")
 	if userID == "" {
 		// Ejemplo con chi o gorilla/mux si fuera el caso: userID = chi.URLParam(r, "id")
-		http.Error(w, "ID de usuario no proporcionado en la URL", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID de usuario no proporcionado en la URL")
 		return
 	}
 
 	var dto UpdateUserDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -199,7 +199,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	dto.ID = userID
 
 	if err := h.service.UpdateUser(r.Context(), companyID, dto); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -210,25 +210,25 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	// Extraer el ID de la URL
 	userID := r.PathValue("id")
 	if userID == "" {
-		http.Error(w, "ID de usuario no proporcionado en la URL", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID de usuario no proporcionado en la URL")
 		return
 	}
 
 	if err := h.service.DeleteUser(r.Context(), companyID, userID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

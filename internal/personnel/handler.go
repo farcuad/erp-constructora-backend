@@ -2,9 +2,9 @@ package personnel
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -18,19 +18,19 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CreatePosition(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var p Position
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	p.CompanyID = companyID
 
 	if err := h.service.CreatePosition(r.Context(), &p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -42,19 +42,19 @@ func (h *Handler) CreatePosition(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateEmployee(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var e Employee
 	if err := json.NewDecoder(r.Body).Decode(&e); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	e.CompanyID = companyID
 
 	if err := h.service.RegisterEmployee(r.Context(), &e); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -66,13 +66,13 @@ func (h *Handler) CreateEmployee(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetEmployees(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	list, err := h.service.ListEmployees(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -83,12 +83,12 @@ func (h *Handler) GetEmployees(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateContract(w http.ResponseWriter, r *http.Request) {
 	var c Contract
 	if err := json.NewDecoder(r.Body).Decode(&c); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.AddContract(r.Context(), &c); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -100,13 +100,13 @@ func (h *Handler) CreateContract(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllPositions(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	list, err := h.service.GetPositions(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -117,19 +117,19 @@ func (h *Handler) GetAllPositions(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdatePosition(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del cargo", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del cargo")
 		return
 	}
 
 	var req UpdatePositionRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -141,7 +141,7 @@ func (h *Handler) UpdatePosition(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdatePosition(r.Context(), &p); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -152,18 +152,18 @@ func (h *Handler) UpdatePosition(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeletePosition(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del cargo", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del cargo")
 		return
 	}
 
 	if err := h.service.DeletePosition(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -173,19 +173,19 @@ func (h *Handler) DeletePosition(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del empleado", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del empleado")
 		return
 	}
 
 	var req UpdateEmployeeRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -203,7 +203,7 @@ func (h *Handler) UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdateEmployee(r.Context(), &e); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -214,18 +214,18 @@ func (h *Handler) UpdateEmployee(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteEmployee(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del empleado", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del empleado")
 		return
 	}
 
 	if err := h.service.DeleteEmployee(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -236,13 +236,13 @@ func (h *Handler) GetALlContracts(w http.ResponseWriter, r *http.Request) {
 
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "Falta el project_id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el project_id")
 		return
 	}
 
 	list, err := h.service.GetAllContract(r.Context(), projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -253,13 +253,13 @@ func (h *Handler) GetALlContracts(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateContract(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del contrato", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del contrato")
 		return
 	}
 
 	var req UpdateContractRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -273,7 +273,7 @@ func (h *Handler) UpdateContract(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.UpdateContract(r.Context(), &c); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -284,12 +284,12 @@ func (h *Handler) UpdateContract(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteContract(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id del contrato", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id del contrato")
 		return
 	}
 
 	if err := h.service.DeleteContract(r.Context(), id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

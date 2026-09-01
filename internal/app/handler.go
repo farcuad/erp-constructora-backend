@@ -2,6 +2,7 @@ package app
 
 import (
 	"encoding/json"
+	"erp-constructora/internal/utils"
 	"net/http"
 )
 
@@ -17,13 +18,13 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) PublishRelease(w http.ResponseWriter, r *http.Request) {
 	var req CreateReleaseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Formato JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Formato JSON inválido")
 		return
 	}
 
 	rel, err := h.service.PublishRelease(r.Context(), &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -37,11 +38,11 @@ func (h *Handler) PublishRelease(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetLatestRelease(w http.ResponseWriter, r *http.Request) {
 	rel, err := h.service.GetLatestRelease(r.Context())
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 	if rel == nil {
-		http.Error(w, "No hay ninguna versión publicada de la app", http.StatusNotFound)
+		utils.WriteNotFound(w, "No hay ninguna versión publicada de la app")
 		return
 	}
 

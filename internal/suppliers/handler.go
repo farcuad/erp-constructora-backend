@@ -2,9 +2,9 @@ package suppliers
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -20,13 +20,13 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CreateSupplier(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyID == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var s Supplier
 	if err := json.NewDecoder(r.Body).Decode(&s); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
@@ -34,7 +34,7 @@ func (h *Handler) CreateSupplier(w http.ResponseWriter, r *http.Request) {
 	s.CompanyID = companyID
 
 	if err := h.service.CreateSupplier(r.Context(), &s); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -46,13 +46,13 @@ func (h *Handler) CreateSupplier(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllSuppliers(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No se encontró la constructora en el contexto de autenticación", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	suppliers, err := h.service.ListSuppliers(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -63,25 +63,25 @@ func (h *Handler) GetAllSuppliers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateSupplier(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req UpdateSupplierRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
 	sup, err := h.service.UpdateSupplier(r.Context(), id, companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -92,18 +92,18 @@ func (h *Handler) UpdateSupplier(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteSupplier(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	if err := h.service.DeleteSupplier(r.Context(), id, companyID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

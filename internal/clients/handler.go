@@ -2,9 +2,9 @@ package clients
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -18,19 +18,19 @@ func NewHandler(service Service) *Handler {
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyID == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req CreateClientRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Payload inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Payload inválido")
 		return
 	}
 
 	client, err := h.service.CreateClient(r.Context(), companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -42,13 +42,13 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyID == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	clients, err := h.service.GetClients(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -59,25 +59,25 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyID == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "ID del cliente es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID del cliente es requerido")
 		return
 	}
 
 	var req UpdateClientRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "Payload inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Payload inválido")
 		return
 	}
 
 	client, err := h.service.UpdateClient(r.Context(), companyID, id, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -88,19 +88,19 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok || companyID == "" {
-		http.Error(w, "No autorizado: ID de empresa ausente", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "ID del cliente es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID del cliente es requerido")
 		return
 	}
 
 	err := h.service.DeleteClient(r.Context(), companyID, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

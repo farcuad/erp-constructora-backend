@@ -3,12 +3,12 @@ package payments
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
-
-	"erp-constructora/internal/middlewares"
-	"erp-constructora/internal/notifications"
 )
 
 func strPtr(s string) *string {
@@ -37,20 +37,20 @@ func (h *Handler) notify(ctx context.Context, req notifications.CreateNotificati
 func (h *Handler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var inv Invoice
 	if err := json.NewDecoder(r.Body).Decode(&inv); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	inv.CompanyID = companyID
 
 	if err := h.service.SaveInvoice(r.Context(), &inv); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -73,32 +73,32 @@ func (h *Handler) CreateInvoice(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var p Payment
 	if err := json.NewDecoder(r.Body).Decode(&p); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	p.CompanyID = companyID
 
 	if err := h.service.ProcessPayment(r.Context(), &p); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
 	h.notify(r.Context(), notifications.CreateNotificationRequest{
-		ProjectID:   &p.ProjectID,
-		EntityType:  "PAYMENT",
-		EntityID:    &p.ID,
-		Type:        "PAYMENT_CREATED",
-		Priority:    notifications.PriorityHigh,
-		Title:       "Nuevo pago registrado",
-		Message:     fmt.Sprintf("Se registró un pago de $%.2f.", p.Amount),
-		LinkToUI:    strPtr("/dashboard/projects/" + p.ProjectID + "/invoices"),
+		ProjectID:  &p.ProjectID,
+		EntityType: "PAYMENT",
+		EntityID:   &p.ID,
+		Type:       "PAYMENT_CREATED",
+		Priority:   notifications.PriorityHigh,
+		Title:      "Nuevo pago registrado",
+		Message:    fmt.Sprintf("Se registró un pago de $%.2f.", p.Amount),
+		LinkToUI:   strPtr("/dashboard/projects/" + p.ProjectID + "/invoices"),
 	})
 
 	w.Header().Set("Content-Type", "application/json")
@@ -109,24 +109,24 @@ func (h *Handler) PostPayment(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	var req UpdateInvoiceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.UpdateInvoice(r.Context(), companyID, id, req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -146,18 +146,18 @@ func (h *Handler) UpdateInvoice(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	if err := h.service.DeleteInvoice(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -177,19 +177,19 @@ func (h *Handler) DeleteInvoice(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "Falta project_id en la ruta", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta project_id en la ruta")
 		return
 	}
 
 	invoices, err := h.service.GetProjectInvoices(r.Context(), companyID, projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -200,19 +200,19 @@ func (h *Handler) GetInvoices(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el id de la factura", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id de la factura")
 		return
 	}
 
 	inv, err := h.service.GetInvoiceByID(r.Context(), companyID, id)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusNotFound)
+		utils.WriteNotFound(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -223,19 +223,19 @@ func (h *Handler) GetInvoiceByID(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetPayments(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	invoiceID := r.PathValue("invoice_id")
 	if invoiceID == "" {
-		http.Error(w, "Falta el id de la factura", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el id de la factura")
 		return
 	}
 
 	payments, err := h.service.GetPayments(r.Context(), companyID, invoiceID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -246,18 +246,18 @@ func (h *Handler) GetPayments(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CancelInvoice(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	if err := h.service.CancelInvoice(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

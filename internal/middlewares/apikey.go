@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"crypto/subtle"
+	"erp-constructora/internal/utils"
 	"net/http"
 	"os"
 )
@@ -16,13 +17,13 @@ func RequireAPIKey(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		expected := os.Getenv("APP_API_KEY")
 		if expected == "" {
-			http.Error(w, "API key no configurada en el servidor", http.StatusInternalServerError)
+			utils.WriteInternalError(w, "API key no configurada en el servidor")
 			return
 		}
 
 		provided := r.Header.Get(APIKeyHeader)
 		if provided == "" || subtle.ConstantTimeCompare([]byte(provided), []byte(expected)) != 1 {
-			http.Error(w, "API key inválida o ausente", http.StatusUnauthorized)
+			utils.WriteUnauthorized(w)
 			return
 		}
 

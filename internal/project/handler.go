@@ -2,10 +2,10 @@ package project
 
 import (
 	"encoding/json"
+	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
 	"net/http"
 	"strings"
-
-	"erp-constructora/internal/middlewares"
 )
 
 type Handler struct {
@@ -18,35 +18,35 @@ func NewHandler(service *Service) *Handler {
 
 func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	// Extraer el company_id de forma segura gracias al middleware
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado: No se encontró contexto de empresa", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var dto CreateProjectDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if dto.Name == "" {
-		http.Error(w, "El nombre del proyecto es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El nombre del proyecto es obligatorio")
 		return
 	}
 
 	project, err := h.service.CreateProject(r.Context(), companyID, dto)
 	if err != nil {
 		if err == middlewares.ErrProjectLimitExceeded {
-			http.Error(w, err.Error(), http.StatusPaymentRequired)
+			utils.WriteError(w, http.StatusPaymentRequired, err.Error())
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -57,19 +57,19 @@ func (h *Handler) Create(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	projects, err := h.service.ListProjects(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -79,31 +79,31 @@ func (h *Handler) GetAll(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPut {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado: No se encontró contexto de empresa", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "ID del proyecto es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID del proyecto es requerido")
 		return
 	}
 
 	var dto UpdateProjectDTO
 	if err := json.NewDecoder(r.Body).Decode(&dto); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	project, err := h.service.UpdateProject(r.Context(), companyID, id, dto)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -113,29 +113,29 @@ func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodDelete {
-		http.Error(w, "Método no permitido", http.StatusMethodNotAllowed)
+		utils.WriteMethodNotAllowed(w)
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado: No se encontró contexto de empresa", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "ID del proyecto es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "ID del proyecto es requerido")
 		return
 	}
 
 	err := h.service.DeleteProject(r.Context(), companyID, id)
 	if err != nil {
 		if strings.Contains(err.Error(), "no se puede eliminar") {
-			http.Error(w, err.Error(), http.StatusConflict)
+			utils.WriteConflict(w, err.Error())
 			return
 		}
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

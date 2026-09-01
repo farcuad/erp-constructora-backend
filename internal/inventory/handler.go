@@ -2,9 +2,9 @@ package inventory
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -18,19 +18,19 @@ func NewHandler(service *Service) *Handler {
 func (h *Handler) CreateWarehouse(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var wh Warehouse
 	if err := json.NewDecoder(r.Body).Decode(&wh); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	wh.CompanyID = companyID
 
 	if err := h.service.CreateWarehouse(r.Context(), &wh); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -42,19 +42,19 @@ func (h *Handler) CreateWarehouse(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var m Material
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	m.CompanyID = companyID
 
 	if err := h.service.CreateMaterial(r.Context(), &m); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -66,13 +66,13 @@ func (h *Handler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllMaterials(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No se encontró la constructora en el contexto de autenticación", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	material, err := h.service.GetMaterials(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -83,19 +83,19 @@ func (h *Handler) GetAllMaterials(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) PostMovement(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var m StockMovement
 	if err := json.NewDecoder(r.Body).Decode(&m); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 	m.UserID = userID
 
 	if err := h.service.RegisterMovement(r.Context(), &m); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -107,13 +107,13 @@ func (h *Handler) PostMovement(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
 	warehouseID := r.PathValue("warehouse_id")
 	if warehouseID == "" {
-		http.Error(w, "Falta warehouse_id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta warehouse_id")
 		return
 	}
 
 	stock, err := h.service.GetCurrentStock(r.Context(), warehouseID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -124,25 +124,25 @@ func (h *Handler) GetStock(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req UpdateMaterialRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
 	m, err := h.service.UpdateMaterial(r.Context(), id, companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -153,18 +153,18 @@ func (h *Handler) UpdateMaterial(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	if err := h.service.DeleteMaterial(r.Context(), id, companyID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -175,13 +175,13 @@ func (h *Handler) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetAllWarehouses(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No se encontró la constructora en el contexto de autenticación", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	suppliers, err := h.service.GetAllWarehouse(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -192,19 +192,19 @@ func (h *Handler) GetAllWarehouses(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req UpdateWarehouseRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido: "+err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido: "+err.Error())
 		return
 	}
 
@@ -212,7 +212,7 @@ func (h *Handler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
 
 	wh, err := h.service.UpdateWarehouse(r.Context(), id, companyID, &req)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -222,18 +222,18 @@ func (h *Handler) UpdateWarehouse(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteWarehouse(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "El parámetro id es obligatorio", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro id es obligatorio")
 		return
 	}
 
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	if err := h.service.DeleteWarehouse(r.Context(), id, companyID); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

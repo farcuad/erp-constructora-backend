@@ -2,9 +2,9 @@ package notifications
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 
 	"github.com/gorilla/websocket"
 )
@@ -30,7 +30,7 @@ func (h *Handler) HandleWS(w http.ResponseWriter, r *http.Request) {
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 
 	if !okCompany || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
@@ -57,13 +57,13 @@ func (h *Handler) GetMyNotifications(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	list, err := h.service.FetchMyNotifications(r.Context(), companyID, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -76,19 +76,19 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	notificationID := r.PathValue("notification_id")
 	if notificationID == "" {
-		http.Error(w, "Falta el parámetro notification_id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro notification_id")
 		return
 	}
 
 	err := h.service.ReadNotification(r.Context(), companyID, notificationID, userID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -101,7 +101,7 @@ func (h *Handler) MarkRead(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) RegisterPushToken(w http.ResponseWriter, r *http.Request) {
 	userID, ok := middlewares.GetUserIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
@@ -110,12 +110,12 @@ func (h *Handler) RegisterPushToken(w http.ResponseWriter, r *http.Request) {
 		Platform string `json:"platform"` // 'android' / 'ios'
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Token == "" {
-		http.Error(w, "Se requiere el campo 'token'", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Se requiere el campo 'token'")
 		return
 	}
 
 	if err := h.service.RegisterPushToken(r.Context(), userID, req.Token, req.Platform); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		utils.WriteBadRequest(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -130,12 +130,12 @@ func (h *Handler) UnregisterPushToken(w http.ResponseWriter, r *http.Request) {
 		Token string `json:"token"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.Token == "" {
-		http.Error(w, "Se requiere el campo 'token'", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Se requiere el campo 'token'")
 		return
 	}
 
 	if err := h.service.UnregisterPushToken(r.Context(), req.Token); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -146,18 +146,18 @@ func (h *Handler) UnregisterPushToken(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeleteNotification(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("notification_id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro notification_id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro notification_id")
 		return
 	}
 
 	if err := h.service.DeleteNotification(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

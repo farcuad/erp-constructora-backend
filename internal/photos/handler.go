@@ -2,9 +2,9 @@ package photos
 
 import (
 	"encoding/json"
-	"net/http"
-
 	"erp-constructora/internal/middlewares"
+	"erp-constructora/internal/utils"
+	"net/http"
 )
 
 type Handler struct {
@@ -20,22 +20,22 @@ func (h *Handler) UploadPhotoMetadata(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	userID, okUser := middlewares.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var photo ProjectPhoto
 	if err := json.NewDecoder(r.Body).Decode(&photo); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if photo.ProjectID == "" {
-		http.Error(w, "project_id es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "project_id es requerido")
 		return
 	}
 	if photo.PhotoURL == "" {
-		http.Error(w, "photo_url es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "photo_url es requerido")
 		return
 	}
 
@@ -43,7 +43,7 @@ func (h *Handler) UploadPhotoMetadata(w http.ResponseWriter, r *http.Request) {
 	photo.UserID = userID
 
 	if err := h.service.RegisterPhoto(r.Context(), &photo); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -55,19 +55,19 @@ func (h *Handler) UploadPhotoMetadata(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) GetGallery(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	projectID := r.PathValue("project_id")
 	if projectID == "" {
-		http.Error(w, "El parámetro project_id es requerido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "El parámetro project_id es requerido")
 		return
 	}
 
 	gallery, err := h.service.GetProjectGallery(r.Context(), companyID, projectID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -78,24 +78,24 @@ func (h *Handler) GetGallery(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UpdatePhoto(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	var req UpdatePhotoRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
 	if err := h.service.UpdatePhoto(r.Context(), companyID, id, req); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -106,18 +106,18 @@ func (h *Handler) UpdatePhoto(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) DeletePhoto(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := middlewares.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	id := r.PathValue("id")
 	if id == "" {
-		http.Error(w, "Falta el parámetro id", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "Falta el parámetro id")
 		return
 	}
 
 	if err := h.service.DeletePhoto(r.Context(), companyID, id); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 

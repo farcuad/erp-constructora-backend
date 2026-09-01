@@ -2,6 +2,7 @@ package middlewares
 
 import (
 	"context"
+	"erp-constructora/internal/utils"
 	"errors"
 	"net/http"
 )
@@ -29,14 +30,14 @@ func RequireActiveSubscription(svc SubscriptionService) func(http.Handler) http.
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			companyID, ok := GetCompanyIDFromContext(r.Context())
 			if !ok || companyID == "" {
-				http.Error(w, "No autorizado", http.StatusUnauthorized)
+				utils.WriteUnauthorized(w)
 				return
 			}
 
 			// UNA SOLA CONSULTA A LA BASE DE DATOS
 			info, err := svc.GetSubscriptionInfo(r.Context(), companyID)
 			if err != nil || info == nil || info.Status != "active" && info.Status != "trial" { // O la condición que defina si está activa
-				http.Error(w, "Suscripción inactiva o expirada", http.StatusPaymentRequired)
+				utils.WriteError(w, http.StatusPaymentRequired, "Suscripción inactiva o expirada")
 				return
 			}
 

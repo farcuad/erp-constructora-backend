@@ -3,13 +3,13 @@ package audit
 import (
 	"context"
 	"encoding/json"
+	"erp-constructora/internal/notifications"
+	"erp-constructora/internal/users"
+	"erp-constructora/internal/utils"
 	"fmt"
 	"log"
 	"net/http"
 	"strings"
-
-	"erp-constructora/internal/notifications"
-	"erp-constructora/internal/users"
 )
 
 type Handler struct {
@@ -43,13 +43,13 @@ func getClientIP(r *http.Request) string {
 func (h *Handler) GetCompanyLogs(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := users.GetCompanyIDFromContext(r.Context())
 	if !ok {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	list, err := h.service.FetchLogs(r.Context(), companyID)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
@@ -64,13 +64,13 @@ func (h *Handler) CreateLog(w http.ResponseWriter, r *http.Request) {
 	companyID, ok := users.GetCompanyIDFromContext(r.Context())
 	userID, okUser := users.GetUserIDFromContext(r.Context())
 	if !ok || !okUser {
-		http.Error(w, "No autorizado", http.StatusUnauthorized)
+		utils.WriteUnauthorized(w)
 		return
 	}
 
 	var req CreateAuditRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "JSON inválido", http.StatusBadRequest)
+		utils.WriteBadRequest(w, "JSON inválido")
 		return
 	}
 
@@ -86,7 +86,7 @@ func (h *Handler) CreateLog(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.service.RegisterLog(r.Context(), &logEntry); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		utils.WriteInternalError(w, utils.GetPGErrorMessage(err))
 		return
 	}
 
